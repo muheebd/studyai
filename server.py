@@ -1,0 +1,703 @@
+#!/usr/bin/env python3
+"""
+StudyAI — Production Server
+Serves both the REST API (/api/*) and the frontend HTML files (/, /student, /admin)
+Run locally: python server.py
+Deploy:      Railway / Render / any platform that runs Python
+"""
+
+import http.server, json, sqlite3, hashlib, hmac, base64, time, os, mimetypes
+from urllib.parse import urlparse, parse_qs
+
+# ─── CONFIG ───────────────────────────────────────────────────────────────────
+PORT       = int(os.environ.get("PORT", 8000))   # Railway sets PORT automatically
+DB_FILE    = os.path.join(os.path.dirname(os.path.abspath(__file__)), "studyai.db")
+JWT_SECRET = os.environ.get("JWT_SECRET", "studyai-alhikmah-secret-2026")
+JWT_EXPIRY = 86400
+
+# Static files served by this server
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+STATIC = {
+    "/":        os.path.join(BASE_DIR, "frontend", "index.html"),
+    "/student": os.path.join(BASE_DIR, "frontend", "student", "index.html"),
+    "/admin":   os.path.join(BASE_DIR, "frontend", "admin",   "index.html"),
+}
+
+# ─── DATABASE ─────────────────────────────────────────────────────────────────
+def get_db():
+    conn = sqlite3.connect(DB_FILE, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def init_db():
+    conn = get_db()
+    conn.executescript("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            email TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            role TEXT NOT NULL CHECK(role IN ('student','lecturer','admin')),
+            matric TEXT, staff_id TEXT, dept TEXT, level TEXT,
+            streak INTEGER DEFAULT 0,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+        CREATE TABLE IF NOT EXISTS quiz_scores (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            student_id INTEGER NOT NULL, quiz_id TEXT NOT NULL,
+            subject TEXT NOT NULL, score INTEGER NOT NULL,
+            total INTEGER NOT NULL, pct INTEGER NOT NULL,
+            taken_at TEXT DEFAULT (datetime('now'))
+        );
+        CREATE TABLE IF NOT EXISTS resources (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL, subject TEXT NOT NULL, type TEXT NOT NULL,
+            size TEXT, content TEXT, recommended INTEGER DEFAULT 0,
+            uploaded_by INTEGER, created_at TEXT DEFAULT (datetime('now'))
+        );
+        CREATE TABLE IF NOT EXISTS interventions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            lecturer_id INTEGER NOT NULL, student_id INTEGER NOT NULL,
+            message TEXT NOT NULL, sent_at TEXT DEFAULT (datetime('now'))
+        );
+        CREATE TABLE IF NOT EXISTS semesters (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            student_id INTEGER NOT NULL, year TEXT NOT NULL,
+            semester TEXT NOT NULL, level TEXT NOT NULL,
+            status TEXT DEFAULT 'active',
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+        CREATE TABLE IF NOT EXISTS courses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            semester_id INTEGER NOT NULL, student_id INTEGER NOT NULL,
+            code TEXT NOT NULL, title TEXT NOT NULL,
+            credit_units INTEGER DEFAULT 3,
+            ca_weight REAL DEFAULT 30, exam_weight REAL DEFAULT 70,
+            target_grade TEXT NOT NULL, target_score REAL NOT NULL,
+            ca_scores TEXT DEFAULT '[]',
+            exam_score REAL, final_score REAL, final_grade TEXT,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+        CREATE TABLE IF NOT EXISTS score_entries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            course_id INTEGER NOT NULL, student_id INTEGER NOT NULL,
+            entry_type TEXT NOT NULL, score REAL NOT NULL,
+            max_score REAL NOT NULL, label TEXT,
+            entered_at TEXT DEFAULT (datetime('now'))
+        );
+    """)
+    # Seed resources
+    if conn.execute("SELECT COUNT(*) FROM resources").fetchone()[0] == 0:
+        conn.executemany("INSERT INTO resources(title,subject,type,size,content,recommended) VALUES(?,?,?,?,?,?)", [
+            ("Naive Bayes — Complete Notes","Naive Bayes","PDF Notes","2.4 MB","Naive Bayes is a probabilistic classifier based on Bayes theorem with conditional independence assumption. Types: Gaussian (continuous), Multinomial (count data), Bernoulli (binary). Laplace smoothing handles zero-probability issues. Used in spam detection and sentiment analysis.",1),
+            ("KNN Algorithm — Lecture Notes","KNN Algorithm","PDF Notes","1.8 MB","K-Nearest Neighbor: lazy learning algorithm. Steps: choose K, calculate distances, select K nearest neighbours, majority vote. Best K via cross-validation. Pros: simple, no training phase. Cons: slow prediction, sensitive to irrelevant features.",1),
+            ("Collaborative Filtering — Research","Collaborative Filtering","Research","1.2 MB","CF recommends based on user behaviour patterns. User-based and Item-based approaches. Matrix Factorisation (SVD). Challenges: cold-start problem, data sparsity. Used by Netflix, Amazon, Spotify.",0),
+            ("Decision Tree — Tutorial","Decision Trees","Tutorial","0.9 MB","Decision Trees split data using Information Gain (ID3), Gini Impurity (CART). Use pruning to prevent overfitting. Pros: interpretable. Cons: unstable, biased to dominant classes.",0),
+            ("Random Forest — Guide","Random Forest","PDF Notes","2.1 MB","Random Forest: ensemble of Decision Trees using bagging. Majority vote for prediction. Key params: n_estimators, max_depth, max_features. OOB error gives unbiased estimate without separate test set.",0),
+            ("ML Algorithms — Quick Reference","ML Algorithms","PDF Notes","0.8 MB","Quick reference for KNN, Naive Bayes, Decision Tree, SVM, Random Forest. Evaluation: Accuracy, Precision, Recall, F1, ROC-AUC. Prevent overfitting: regularisation, cross-validation, pruning.",1),
+        ])
+    conn.commit(); conn.close()
+    print(f"✅ Database ready: {DB_FILE}")
+
+# ─── GRADING ──────────────────────────────────────────────────────────────────
+GRADES = [('A',5.0,70,100),('B',4.0,60,69),('C',3.0,50,59),('D',2.0,45,49),('F',0.0,0,44)]
+def score_to_grade(s):
+    for g,gp,lo,hi in GRADES:
+        if lo<=round(s)<=hi: return g,gp
+    return 'F',0.0
+def grade_to_min(g):
+    for gr,gp,lo,hi in GRADES:
+        if gr==g: return lo
+    return 50
+
+def ai_plan(target_score, ca_weight, exam_weight, ca_scores=None):
+    ca_w,ex_w=ca_weight/100,exam_weight/100
+    existing=ca_scores or []
+    ca_contrib=round(target_score*ca_w,1)
+    ex_contrib=round(target_score*ex_w,1)
+    grade=score_to_grade(target_score)[0]
+    avg_ca,ca_earned,exam_needed=None,0,None
+    achievable=True
+    if existing:
+        avg_ca=sum(existing)/len(existing); ca_earned=round(avg_ca*ca_w,1)
+        exam_needed=round((target_score-ca_earned)/ex_w,1) if ex_w else 0
+        exam_needed=max(0,exam_needed)
+        if exam_needed>100: achievable=False
+    lines=[]
+    if not existing:
+        lines.append(f"To reach grade {grade} ({target_score}%+), aim for {round(ca_contrib/ca_w) if ca_w else 0}%+ in every CA assessment (contributing {ca_contrib} marks).")
+        lines.append(f"In the final exam, aim for {round(ex_contrib/ex_w) if ex_w else 0}%+ (contributing {ex_contrib} marks to your total).")
+    else:
+        lines.append(f"Your CA average so far is {round(avg_ca,1)}%, contributing {ca_earned} marks to your total.")
+        if achievable:
+            lines.append(f"To still reach grade {grade}, you need at least {exam_needed}% in the final exam.")
+            lines.append("⚠️ Very high exam requirement — intensify revision, use past questions." if exam_needed>85 else "This is challenging but achievable. Stick to your study plan." if exam_needed>70 else "✅ You are on track! Keep your current study effort.")
+        else:
+            lines.append(f"❌ Grade {grade} is now mathematically impossible based on your CA scores.")
+            for g,gp,lo,hi in GRADES:
+                rem=lo-ca_earned; ex=rem/ex_w if ex_w else 0
+                if 0<=ex<=100:
+                    lines.append(f"Revised target: Grade {g} ({lo}%+) — you need {round(ex,1)}% in the exam."); break
+    return {"target_score":target_score,"target_grade":grade,"ca_weight":ca_weight,"exam_weight":exam_weight,
+            "ca_contribution_needed":ca_contrib,"exam_contribution_needed":ex_contrib,
+            "existing_ca_scores":existing,"avg_ca":round(avg_ca,1) if avg_ca else None,
+            "ca_earned_so_far":ca_earned if existing else None,"exam_score_needed":exam_needed,
+            "is_target_still_achievable":achievable,"advice_lines":lines,"advice":" ".join(lines)}
+
+def semester_gpa(courses):
+    tu,tp=0,0
+    for c in courses:
+        if c.get("final_score") is not None:
+            _,gp=score_to_grade(c["final_score"]); u=c.get("credit_units",3)
+            tu+=u; tp+=gp*u
+    return round(tp/tu,2) if tu else None
+
+# ─── ML ENGINE ────────────────────────────────────────────────────────────────
+class Engine:
+    def __init__(self):
+        self.ok=False
+        try:
+            import numpy as np
+            from sklearn.neighbors import KNeighborsClassifier
+            from sklearn.tree import DecisionTreeClassifier
+            from sklearn.ensemble import RandomForestClassifier
+            from sklearn.naive_bayes import GaussianNB
+            from sklearn.preprocessing import StandardScaler
+            X=np.array([[25,2,1,6],[30,3,1,5],[35,4,2,5],[40,5,1,4],[38,3,1,5],
+                        [45,7,2,4],[50,9,3,3],[52,10,3,3],[48,8,2,4],[55,11,4,3],
+                        [60,13,4,2],[65,15,5,2],[62,14,4,2],[68,16,5,1],[58,12,3,2],
+                        [72,20,7,1],[75,22,9,1],[78,24,10,1],[80,25,11,0],[70,19,7,1],
+                        [85,28,15,0],[90,32,20,0],[88,30,18,0],[92,35,22,0],[95,38,25,0]])
+            y=np.array([0,0,0,0,0,1,1,1,1,1,2,2,2,2,2,3,3,3,3,3,4,4,4,4,4])
+            self.sc=StandardScaler(); Xs=self.sc.fit_transform(X)
+            self.knn=KNeighborsClassifier(n_neighbors=3)
+            self.dt=DecisionTreeClassifier(max_depth=4,random_state=42)
+            self.rf=RandomForestClassifier(n_estimators=30,max_depth=4,random_state=42)
+            self.nb=GaussianNB()
+            for m in (self.knn,self.dt,self.rf,self.nb): m.fit(Xs,y)
+            self.ok=True; print("✅ ML Engine trained (KNN + DT + RF + NB)")
+        except Exception as e: print(f"⚠️  ML fallback: {e}")
+
+    def classify(self,avg,quizzes,streak,subjects):
+        weak=sum(1 for s in subjects.values() if s<60) if subjects else 0
+        if self.ok:
+            import numpy as np
+            from collections import Counter
+            X=self.sc.transform(np.array([[avg,quizzes,streak,weak]]))
+            lvl=Counter([m.predict(X)[0] for m in (self.knn,self.dt,self.rf,self.nb)]).most_common(1)[0][0]
+        else:
+            lvl=0 if avg<45 else 1 if avg<55 else 2 if avg<65 else 3 if avg<78 else 4
+        return {"level":int(lvl),"label":["Critical","At-Risk","Developing","Proficient","Excellent"][lvl],"confidence":80}
+
+    def recs(self,subjects,quizzes,streak):
+        default={"ML Algorithms":78,"Data Preprocessing":65,"Recommendation Systems":60,
+                 "Collaborative Filtering":52,"Naive Bayes":42,"Random Forest":72,
+                 "Decision Trees":75,"KNN Algorithm":58}
+        subjects=subjects or default
+        avg=sum(subjects.values())/len(subjects)
+        cls=self.classify(avg,quizzes,streak,subjects)
+        result=[]
+        for i,(sub,score) in enumerate(sorted(subjects.items(),key=lambda x:x[1])):
+            urgency="critical" if score<50 else "high" if score<62 else "medium" if score<75 else "maintain"
+            result.append({"priority":i+1,"subject":sub,"current_score":score,"urgency":urgency,
+                "action":"Study Resources" if score<55 else "Practice Quiz",
+                "estimated_improvement":max(2,round((100-score)/8)),
+                "study_time":max(10,round((100-score)/4)),
+                "reason":(f"Score of {score}% is critically low — top priority." if score<50
+                         else f"Below pass mark ({score}%). Targeted practice will help." if score<60
+                         else f"Below class average ({score}%). Focus here." if score<75
+                         else f"Strong at {score}%. Quick review to maintain.")})
+        return {"recommendations":result[:5],"classification":cls,
+                "predicted_grade":score_to_grade(avg)[0],"avg_score":round(avg),
+                "model":"KNN+DT+RF+NB Ensemble","generated_at":time.strftime("%Y-%m-%dT%H:%M:%S")}
+
+ENGINE=Engine()
+
+# ─── JWT + PASSWORD ───────────────────────────────────────────────────────────
+def _b64u(d): return base64.urlsafe_b64encode(d).rstrip(b'=').decode()
+def _b64d(s): p=4-len(s)%4; return base64.urlsafe_b64decode(s+'='*(p%4))
+
+def make_token(payload):
+    h=_b64u(json.dumps({"alg":"HS256","typ":"JWT"}).encode())
+    payload['exp']=int(time.time())+JWT_EXPIRY
+    b=_b64u(json.dumps(payload).encode())
+    s=_b64u(hmac.new(JWT_SECRET.encode(),f"{h}.{b}".encode(),hashlib.sha256).digest())
+    return f"{h}.{b}.{s}"
+
+def check_token(token):
+    try:
+        h,b,s=token.split('.')
+        exp=_b64u(hmac.new(JWT_SECRET.encode(),f"{h}.{b}".encode(),hashlib.sha256).digest())
+        if not hmac.compare_digest(s,exp): return None
+        pl=json.loads(_b64d(b))
+        return pl if pl.get('exp',0)>time.time() else None
+    except: return None
+
+def hash_pw(pw):
+    salt=os.urandom(16); k=hashlib.pbkdf2_hmac('sha256',pw.encode(),salt,100000)
+    return base64.b64encode(salt+k).decode()
+
+def verify_pw(pw,stored):
+    try:
+        d=base64.b64decode(stored); salt,k=d[:16],d[16:]
+        return hmac.compare_digest(hashlib.pbkdf2_hmac('sha256',pw.encode(),salt,100000),k)
+    except: return False
+
+# ─── QUIZ DATA ────────────────────────────────────────────────────────────────
+QUIZZES=[
+  {"id":"q1","title":"KNN Algorithm Fundamentals","subject":"KNN Algorithm","duration":10,"difficulty":"Medium","questions":[
+    {"id":1,"text":"What does KNN stand for?","options":["K-Nearest Neighbor","K-Normalized Network","K-Node Navigator","K-Neural Net"],"correct":0},
+    {"id":2,"text":"Most common distance metric in KNN?","options":["Hamming","Manhattan","Euclidean","Cosine"],"correct":2},
+    {"id":3,"text":"Main disadvantage of KNN?","options":["Cannot classify","High prediction cost","No numeric features","Needs large memory"],"correct":1},
+    {"id":4,"text":"How is K typically chosen?","options":["Always 1","Cross-validation","Always 10","Randomly"],"correct":1},
+    {"id":5,"text":"KNN is an example of?","options":["Eager learning","Lazy learning","Deep learning","Reinforcement learning"],"correct":1},
+  ]},
+  {"id":"q2","title":"Decision Tree Concepts","subject":"Decision Trees","duration":12,"difficulty":"Easy","questions":[
+    {"id":1,"text":"What is the root node?","options":["Last node","Topmost node — best split","A leaf node","Random node"],"correct":1},
+    {"id":2,"text":"Common impurity metric?","options":["Euclidean distance","Gini Impurity","MSE","Cosine similarity"],"correct":1},
+    {"id":3,"text":"What happens at a leaf node?","options":["Another split","Class label assigned","Tree continues","Features normalised"],"correct":1},
+    {"id":4,"text":"What is pruning?","options":["Adding nodes","Removing nodes to reduce overfitting","Normalising","Splitting"],"correct":1},
+    {"id":5,"text":"Algorithm using information gain?","options":["KNN","SVM","ID3","K-Means"],"correct":2},
+  ]},
+  {"id":"q3","title":"Naive Bayes Classification","subject":"Naive Bayes","duration":10,"difficulty":"Hard","questions":[
+    {"id":1,"text":"What assumption does Naive Bayes make?","options":["Features correlated","Conditionally independent","Must be normalised","Numeric only"],"correct":1},
+    {"id":2,"text":"Based on which theorem?","options":["Pythagorean","Bayes'","Newton's","Laplace Transform"],"correct":1},
+    {"id":3,"text":"Laplace Smoothing handles?","options":["Speed","Zero probability","Normalisation","Feature selection"],"correct":1},
+    {"id":4,"text":"Best type for text classification?","options":["Gaussian","Bernoulli","Multinomial","Categorical"],"correct":2},
+    {"id":5,"text":"'Naive' refers to?","options":["Simple code","Conditional independence assumption","Low accuracy","Small data"],"correct":1},
+  ]},
+  {"id":"q4","title":"Random Forest Essentials","subject":"Random Forest","duration":12,"difficulty":"Medium","questions":[
+    {"id":1,"text":"Random Forest is an ensemble of?","options":["Neural Networks","Decision Trees","SVMs","KNN"],"correct":1},
+    {"id":2,"text":"Technique for diverse trees?","options":["Gradient Boosting","Bagging + random features","Pruning","Dropout"],"correct":1},
+    {"id":3,"text":"How does RF predict (classification)?","options":["Average probabilities","Majority voting","First tree","Weakest tree"],"correct":1},
+    {"id":4,"text":"Out-of-Bag error is?","options":["Training error","Validation on unseen bootstrap samples","Test error","CV error"],"correct":1},
+    {"id":5,"text":"Hyperparameter for number of trees?","options":["max_depth","n_estimators","min_samples_split","max_features"],"correct":1},
+  ]},
+  {"id":"q5","title":"Collaborative Filtering","subject":"Collaborative Filtering","duration":10,"difficulty":"Medium","questions":[
+    {"id":1,"text":"CF is based on?","options":["Content attributes","User behaviour patterns","Random sampling","Rule logic"],"correct":1},
+    {"id":2,"text":"Cold-start problem means?","options":["Slow computation","Insufficient data for new users/items","Memory overflow","Feature mismatch"],"correct":1},
+    {"id":3,"text":"User-based CF finds?","options":["Similar items","Similar users","Random neighbours","Nearest cluster"],"correct":1},
+    {"id":4,"text":"Matrix Factorisation technique?","options":["PCA","SVD","LDA","ICA"],"correct":1},
+    {"id":5,"text":"Which platform uses CF?","options":["Google Search","Netflix","Wikipedia","GitHub"],"correct":1},
+  ]},
+]
+
+# ─── HTTP HANDLER ─────────────────────────────────────────────────────────────
+class Handler(http.server.BaseHTTPRequestHandler):
+
+    def log_message(self,fmt,*a): print(f'[{self.address_string()}] "{fmt%a}"')
+
+    def send_html(self, path):
+        """Serve a static HTML file."""
+        try:
+            with open(path, 'rb') as f:
+                content = f.read()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(content)))
+            self.end_headers()
+            self.wfile.write(content)
+        except FileNotFoundError:
+            self.send_response(404)
+            self.end_headers()
+            self.wfile.write(b"Not found")
+
+    def jout(self,data,status=200):
+        body=json.dumps(data,default=str).encode()
+        self.send_response(status)
+        for k,v in [("Content-Type","application/json"),("Content-Length",str(len(body))),
+                    ("Access-Control-Allow-Origin","*"),
+                    ("Access-Control-Allow-Methods","GET,POST,PUT,DELETE,OPTIONS"),
+                    ("Access-Control-Allow-Headers","Content-Type,Authorization")]:
+            self.send_header(k,v)
+        self.end_headers(); self.wfile.write(body)
+
+    def jerr(self,msg,s=400): self.jout({"error":msg},s)
+
+    def rbody(self):
+        n=int(self.headers.get("Content-Length",0))
+        return json.loads(self.rfile.read(n)) if n else {}
+
+    def get_user(self):
+        auth=self.headers.get("Authorization","")
+        if not auth.startswith("Bearer "): return None
+        pl=check_token(auth[7:])
+        if not pl: return None
+        conn=get_db(); u=conn.execute("SELECT * FROM users WHERE id=?",(pl["user_id"],)).fetchone(); conn.close()
+        return dict(u) if u else None
+
+    def need_auth(self):
+        u=self.get_user()
+        if not u: self.jerr("Unauthorised",401)
+        return u
+
+    def need_staff(self):
+        u=self.need_auth()
+        if not u: return None
+        if u["role"] not in ("lecturer","admin"): self.jerr("Staff only",403); return None
+        return u
+
+    def do_OPTIONS(self):
+        self.send_response(204)
+        for k,v in [("Access-Control-Allow-Origin","*"),
+                    ("Access-Control-Allow-Methods","GET,POST,PUT,DELETE,OPTIONS"),
+                    ("Access-Control-Allow-Headers","Content-Type,Authorization")]:
+            self.send_header(k,v)
+        self.end_headers()
+
+    def do_GET(self):
+        p=urlparse(self.path); path=p.path.rstrip("/") or "/"; qs=parse_qs(p.query)
+
+        # ── Serve static HTML pages ──
+        if path in STATIC:
+            return self.send_html(STATIC[path])
+
+        # ── API routes ──
+        {
+            "/api":                    self.root,
+            "/api/health":             self.health,
+            "/api/auth/me":            self.me,
+            "/api/student/dashboard":  self.dashboard,
+            "/api/student/progress":   self.progress,
+            "/api/student/cgpa":       self.cgpa,
+            "/api/recommendations":    self.recommendations,
+            "/api/quizzes":            self.get_quizzes,
+            "/api/resources":          self.get_resources,
+            "/api/analytics/class":    self.class_analytics,
+            "/api/analytics/students": self.all_students,
+            "/api/analytics/at-risk":  self.at_risk,
+            "/api/semesters":          self.get_semesters,
+            "/api/courses":            self.get_courses,
+            "/api/semester/summary":   self.semester_summary,
+            "/api/profile/history":    self.profile_history,
+            "/api/admin/student":      self.admin_student_detail,
+        }.get(path, lambda _=None: self.jerr("Not found",404))(qs)
+
+    def do_POST(self):
+        p=urlparse(self.path); path=p.path.rstrip("/")
+        {
+            "/api/auth/register":          self.register,
+            "/api/auth/login":             self.login,
+            "/api/student/quiz/submit":    self.quiz_submit,
+            "/api/resources/upload":       self.resource_upload,
+            "/api/analytics/intervention": self.intervention,
+            "/api/semesters/create":       self.create_semester,
+            "/api/courses/add":            self.add_course,
+            "/api/scores/log":             self.log_score,
+            "/api/profile/update":         self.profile_update,
+            "/api/profile/password":       self.profile_password,
+        }.get(path, lambda: self.jerr("Not found",404))()
+
+    # ══ AUTH ══════════════════════════════════════════════════════════════════
+    def root(self,_=None): self.jout({"name":"StudyAI API","version":"2.0","status":"running","university":"Al-Hikmah University, Ilorin"})
+    def health(self,_=None): self.jout({"status":"healthy","timestamp":time.strftime("%Y-%m-%dT%H:%M:%S")})
+
+    def register(self):
+        d=self.rbody()
+        name=d.get("name","").strip(); email=d.get("email","").strip().lower()
+        pw=d.get("password",""); role=d.get("role","student")
+        if not name or not email or not pw: return self.jerr("Name, email and password are required")
+        if len(pw)<6: return self.jerr("Password must be at least 6 characters")
+        if role not in ("student","lecturer","admin"): return self.jerr("Invalid role")
+        conn=get_db()
+        try:
+            if conn.execute("SELECT id FROM users WHERE email=?",(email,)).fetchone():
+                return self.jerr("An account with this email already exists")
+            conn.execute("INSERT INTO users(name,email,password_hash,role,matric,staff_id,dept,level) VALUES(?,?,?,?,?,?,?,?)",
+                (name,email,hash_pw(pw),role,d.get("matric",""),d.get("staff_id",""),d.get("dept",""),d.get("level","")))
+            conn.commit(); uid=conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+            tok=make_token({"user_id":uid,"role":role,"email":email})
+            self.jout({"message":"Account created","token":tok,"user":{"id":uid,"name":name,"email":email,"role":role,"dept":d.get("dept",""),"level":d.get("level",""),"matric":d.get("matric",""),"staff_id":d.get("staff_id",""),"streak":0}},201)
+        finally: conn.close()
+
+    def login(self):
+        d=self.rbody(); email=d.get("email","").strip().lower(); pw=d.get("password","")
+        if not email or not pw: return self.jerr("Email and password required")
+        conn=get_db()
+        try:
+            u=conn.execute("SELECT * FROM users WHERE email=?",(email,)).fetchone()
+            if not u or not verify_pw(pw,u["password_hash"]): return self.jerr("Incorrect email or password",401)
+            u=dict(u); tok=make_token({"user_id":u["id"],"role":u["role"],"email":u["email"]})
+            self.jout({"token":tok,"user":{k:u[k] for k in ("id","name","email","role","matric","staff_id","dept","level","streak","created_at")}})
+        finally: conn.close()
+
+    def me(self,_=None):
+        u=self.need_auth()
+        if u: self.jout({k:u[k] for k in ("id","name","email","role","matric","staff_id","dept","level","streak","created_at") if k in u})
+
+    def profile_update(self):
+        u=self.need_auth()
+        if not u: return
+        d=self.rbody(); name=d.get("name","").strip(); dept=d.get("dept","").strip(); level=d.get("level","").strip()
+        if not name: return self.jerr("Name is required")
+        conn=get_db(); conn.execute("UPDATE users SET name=?,dept=?,level=? WHERE id=?",(name,dept,level,u["id"])); conn.commit(); conn.close()
+        self.jout({"message":"Profile updated successfully"})
+
+    def profile_password(self):
+        u=self.need_auth()
+        if not u: return
+        d=self.rbody(); current=d.get("current",""); new_pw=d.get("new",""); confirm=d.get("confirm","")
+        if not current or not new_pw: return self.jerr("Current and new password required")
+        if not verify_pw(current,u["password_hash"]): return self.jerr("Current password is incorrect",401)
+        if len(new_pw)<6: return self.jerr("New password must be at least 6 characters")
+        if new_pw!=confirm: return self.jerr("Passwords do not match")
+        conn=get_db(); conn.execute("UPDATE users SET password_hash=? WHERE id=?",(hash_pw(new_pw),u["id"])); conn.commit(); conn.close()
+        self.jout({"message":"Password changed successfully"})
+
+    # ══ STUDENT ═══════════════════════════════════════════════════════════════
+    def dashboard(self,_=None):
+        u=self.need_auth()
+        if not u: return
+        conn=get_db()
+        rows=conn.execute("SELECT subject,pct,taken_at FROM quiz_scores WHERE student_id=? ORDER BY taken_at DESC",(u["id"],)).fetchall()
+        conn.close()
+        sm={}
+        for r in rows: sm.setdefault(r["subject"],[]).append(r["pct"])
+        sa={s:round(sum(v)/len(v)) for s,v in sm.items()}
+        ov=round(sum(sa.values())/len(sa)) if sa else 0
+        self.jout({"metrics":{"overall_score":ov,"quizzes_done":len(rows),"streak":u.get("streak",0),"recommendations_pending":4,"predicted_grade":score_to_grade(ov)[0] if ov else "N/A"},"subject_scores":sa,"weekly_scores":[r["pct"] for r in list(reversed(list(rows)))[-8:]] or [0]})
+
+    def progress(self,_=None):
+        u=self.need_auth()
+        if not u: return
+        conn=get_db(); rows=[dict(r) for r in conn.execute("SELECT quiz_id,subject,score,total,pct,taken_at FROM quiz_scores WHERE student_id=? ORDER BY taken_at DESC",(u["id"],)).fetchall()]; conn.close()
+        sm={}
+        for r in rows: sm.setdefault(r["subject"],[]).append(r["pct"])
+        sa={s:round(sum(v)/len(v)) for s,v in sm.items()}; ov=round(sum(sa.values())/len(sa)) if sa else 0
+        self.jout({"quiz_history":rows,"subject_averages":sa,"overall_avg":ov,"quizzes_done":len(rows),"strongest":max(sa,key=sa.get) if sa else None,"weakest":min(sa,key=sa.get) if sa else None})
+
+    def cgpa(self,_=None):
+        u=self.need_auth()
+        if not u: return
+        conn=get_db()
+        sems=conn.execute("SELECT * FROM semesters WHERE student_id=? ORDER BY created_at ASC",(u["id"],)).fetchall()
+        tu,tp,sem_gpas=0,0,[]
+        for s in sems:
+            s=dict(s); cs=[dict(r) for r in conn.execute("SELECT * FROM courses WHERE semester_id=?",(s["id"],)).fetchall()]
+            for c in cs:
+                if c.get("final_score") is not None:
+                    _,gp=score_to_grade(c["final_score"]); uu=c.get("credit_units",3); tu+=uu; tp+=gp*uu
+            g=semester_gpa(cs)
+            if g: sem_gpas.append({"semester":s["semester"]+" "+s["year"],"gpa":g})
+        conn.close()
+        cv=round(tp/tu,2) if tu else None
+        self.jout({"cgpa":cv,"total_credit_units":tu,"semester_gpas":sem_gpas,"classification":("First Class" if cv and cv>=4.5 else "Second Class Upper" if cv and cv>=3.5 else "Second Class Lower" if cv and cv>=2.4 else "Third Class" if cv and cv>=1.5 else "Pass" if cv and cv>=1.0 else "N/A")})
+
+    def recommendations(self,_=None):
+        u=self.need_auth()
+        if not u: return
+        conn=get_db(); rows=conn.execute("SELECT subject,pct FROM quiz_scores WHERE student_id=?",(u["id"],)).fetchall(); conn.close()
+        sm={}
+        for r in rows: sm.setdefault(r["subject"],[]).append(r["pct"])
+        sa={s:round(sum(v)/len(v)) for s,v in sm.items()} or None
+        self.jout(ENGINE.recs(sa,len(rows),u.get("streak",0)))
+
+    def get_quizzes(self,_=None):
+        u=self.need_auth()
+        if u: self.jout({"quizzes":QUIZZES})
+
+    def quiz_submit(self):
+        u=self.need_auth()
+        if not u or u["role"]!="student": return self.jerr("Student only",403)
+        d=self.rbody(); qid=d.get("quiz_id",""); subj=d.get("subject","")
+        sc=int(d.get("score",0)); tot=int(d.get("total",5)); pct=round((sc/tot)*100) if tot else 0
+        if not qid or not subj: return self.jerr("quiz_id and subject required")
+        conn=get_db()
+        conn.execute("INSERT INTO quiz_scores(student_id,quiz_id,subject,score,total,pct) VALUES(?,?,?,?,?,?)",(u["id"],qid,subj,sc,tot,pct))
+        conn.execute("UPDATE users SET streak=streak+1 WHERE id=?",(u["id"],)); conn.commit(); conn.close()
+        g=score_to_grade(pct)[0]
+        self.jout({"message":"Quiz submitted","score":sc,"total":tot,"pct":pct,"grade":g,"feedback":("Excellent! AI will deprioritise this topic." if pct>=70 else "Good — review incorrect answers." if pct>=50 else "Needs focus. Check AI recommendations.")},201)
+
+    # ══ RESOURCES ═════════════════════════════════════════════════════════════
+    def get_resources(self,qs=None):
+        u=self.need_auth()
+        if not u: return
+        subj=(qs or {}).get("subject",[None])[0]
+        conn=get_db(); rows=(conn.execute("SELECT * FROM resources WHERE subject=?",(subj,)).fetchall() if subj else conn.execute("SELECT * FROM resources").fetchall()); conn.close()
+        self.jout({"resources":[dict(r) for r in rows],"total":len(rows)})
+
+    def resource_upload(self):
+        u=self.need_staff()
+        if not u: return
+        d=self.rbody(); title=d.get("title","").strip(); subj=d.get("subject","").strip()
+        if not title or not subj: return self.jerr("Title and subject required")
+        conn=get_db(); conn.execute("INSERT INTO resources(title,subject,type,content,recommended,uploaded_by) VALUES(?,?,?,?,?,?)",(title,subj,d.get("type","Lecture Notes"),d.get("content",""),1 if d.get("recommended") else 0,u["id"])); conn.commit(); conn.close()
+        self.jout({"message":"Resource uploaded"},201)
+
+    # ══ ANALYTICS ═════════════════════════════════════════════════════════════
+    def class_analytics(self,_=None):
+        u=self.need_staff()
+        if not u: return
+        conn=get_db(); students=conn.execute("SELECT * FROM users WHERE role='student'").fetchall(); sr=conn.execute("SELECT student_id,subject,pct FROM quiz_scores").fetchall(); conn.close()
+        sm={}
+        for r in sr: sm.setdefault(r["student_id"],[]).append(r["pct"])
+        am={sid:round(sum(v)/len(v)) for sid,v in sm.items()}; scores=list(am.values())
+        ca=round(sum(scores)/len(scores)) if scores else 0; pr=round(sum(1 for s in scores if s>=50)/len(scores)*100) if scores else 0
+        dist={"0-40":0,"41-55":0,"56-65":0,"66-75":0,"76-85":0,"86-100":0}
+        for s in scores:
+            k=("0-40" if s<=40 else "41-55" if s<=55 else "56-65" if s<=65 else "66-75" if s<=75 else "76-85" if s<=85 else "86-100"); dist[k]+=1
+        subm={}
+        for r in sr: subm.setdefault(r["subject"],[]).append(r["pct"])
+        self.jout({"total_students":len(students),"class_average":ca,"pass_rate":pr,"score_distribution":dist,"subject_averages":{s:round(sum(v)/len(v)) for s,v in subm.items()},"engagement_rate":88})
+
+    def all_students(self,_=None):
+        u=self.need_staff()
+        if not u: return
+        conn=get_db(); sts=conn.execute("SELECT id,name,matric,dept,level,streak,created_at FROM users WHERE role='student'").fetchall(); sr=conn.execute("SELECT student_id,pct FROM quiz_scores").fetchall(); qc=conn.execute("SELECT student_id,COUNT(*) as cnt FROM quiz_scores GROUP BY student_id").fetchall(); conn.close()
+        sm={}
+        for r in sr: sm.setdefault(r["student_id"],[]).append(r["pct"])
+        am={sid:round(sum(v)/len(v)) for sid,v in sm.items()}; qm={r["student_id"]:r["cnt"] for r in qc}
+        out=[]
+        for s in sts:
+            s=dict(s); avg=am.get(s["id"],0)
+            out.append({**s,"avg_score":avg,"quizzes_done":qm.get(s["id"],0),"risk":"high" if avg<50 else "medium" if avg<65 else "low","predicted_grade":score_to_grade(avg)[0] if avg else "N/A"})
+        self.jout({"students":out,"total":len(out)})
+
+    def at_risk(self,_=None):
+        u=self.need_staff()
+        if not u: return
+        conn=get_db(); sts=conn.execute("SELECT id,name,matric,dept,streak FROM users WHERE role='student'").fetchall(); sr=conn.execute("SELECT student_id,pct FROM quiz_scores").fetchall(); conn.close()
+        sm={}
+        for r in sr: sm.setdefault(r["student_id"],[]).append(r["pct"])
+        out=[]
+        for s in sts:
+            s=dict(s); avgs=sm.get(s["id"],[]); avg=round(sum(avgs)/len(avgs)) if avgs else 0
+            cls=ENGINE.classify(avg,len(avgs),s.get("streak",0),{})
+            if cls["level"]<=2:
+                issues=[]
+                if avg<50: issues.append(f"Average {avg}% — below pass mark")
+                if s.get("streak",0)<=2: issues.append(f"Study streak only {s.get('streak',0)} day(s)")
+                if len(avgs)<5: issues.append(f"Only {len(avgs)} quiz(zes) completed")
+                out.append({**s,"avg_score":avg,"quizzes_done":len(avgs),"risk":"high" if cls["level"]<=1 else "medium","ai_label":cls["label"],"ai_confidence":cls["confidence"],"issues":" · ".join(issues) if issues else "Declining performance trend"})
+        self.jout({"at_risk_students":out,"high_risk_count":sum(1 for s in out if s["risk"]=="high"),"medium_risk_count":sum(1 for s in out if s["risk"]=="medium")})
+
+    def intervention(self):
+        u=self.need_staff()
+        if not u: return
+        d=self.rbody(); sid=d.get("student_id"); msg=d.get("message","Your lecturer has sent you a support message.")
+        if not sid: return self.jerr("student_id required")
+        conn=get_db(); s=conn.execute("SELECT name FROM users WHERE id=? AND role='student'",(sid,)).fetchone()
+        if not s: conn.close(); return self.jerr("Student not found",404)
+        conn.execute("INSERT INTO interventions(lecturer_id,student_id,message) VALUES(?,?,?)",(u["id"],sid,msg)); conn.commit(); conn.close()
+        self.jout({"message":f"Intervention sent to {s['name']}"},201)
+
+    def admin_student_detail(self,qs=None):
+        u=self.need_staff()
+        if not u: return
+        sid=(qs or {}).get("id",[None])[0]
+        if not sid: return self.jerr("id required")
+        conn=get_db()
+        student=conn.execute("SELECT id,name,email,matric,dept,level,streak,created_at FROM users WHERE id=? AND role='student'",(sid,)).fetchone()
+        if not student: conn.close(); return self.jerr("Student not found",404)
+        student=dict(student); scores=list(conn.execute("SELECT subject,pct,taken_at FROM quiz_scores WHERE student_id=? ORDER BY taken_at DESC",(sid,)).fetchall())
+        sems=conn.execute("SELECT * FROM semesters WHERE student_id=? ORDER BY created_at ASC",(sid,)).fetchall()
+        history=[]
+        for s in sems:
+            s=dict(s); rows=conn.execute("SELECT * FROM courses WHERE semester_id=?",(s["id"],)).fetchall()
+            cs=[]
+            for r in rows:
+                c=dict(r); c["ca_scores"]=json.loads(c.get("ca_scores") or "[]"); cs.append(c)
+            s["courses"]=cs; s["gpa"]=semester_gpa(cs); history.append(s)
+        conn.close()
+        sm={}
+        for r in scores: sm.setdefault(r["subject"],[]).append(r["pct"])
+        sa={s:round(sum(v)/len(v)) for s,v in sm.items()}; avg=round(sum(sa.values())/len(sa)) if sa else 0
+        self.jout({"student":student,"avg_score":avg,"quizzes_done":len(scores),"subject_averages":sa,"semester_history":history,"risk":"high" if avg<50 else "medium" if avg<65 else "low"})
+
+    # ══ SEMESTERS ═════════════════════════════════════════════════════════════
+    def get_semesters(self,_=None):
+        u=self.need_auth()
+        if not u: return
+        conn=get_db(); rows=conn.execute("SELECT * FROM semesters WHERE student_id=? ORDER BY created_at DESC",(u["id"],)).fetchall(); conn.close()
+        self.jout({"semesters":[dict(r) for r in rows]})
+
+    def create_semester(self):
+        u=self.need_auth()
+        if not u or u["role"]!="student": return self.jerr("Student only",403)
+        d=self.rbody(); year=d.get("year","").strip(); sem=d.get("semester","").strip(); level=d.get("level","").strip()
+        if not year or not sem or not level: return self.jerr("year, semester and level required")
+        conn=get_db(); conn.execute("UPDATE semesters SET status='completed' WHERE student_id=? AND status='active'",(u["id"],)); conn.execute("INSERT INTO semesters(student_id,year,semester,level) VALUES(?,?,?,?)",(u["id"],year,sem,level)); conn.commit(); sid=conn.execute("SELECT last_insert_rowid()").fetchone()[0]; conn.close()
+        self.jout({"message":"Semester created","semester_id":sid},201)
+
+    def get_courses(self,qs=None):
+        u=self.need_auth()
+        if not u: return
+        sem_id=(qs or {}).get("semester_id",[None])[0]
+        conn=get_db(); rows=(conn.execute("SELECT * FROM courses WHERE semester_id=? AND student_id=?",(sem_id,u["id"])).fetchall() if sem_id else conn.execute("SELECT * FROM courses WHERE student_id=? ORDER BY created_at DESC",(u["id"],)).fetchall())
+        out=[]
+        for r in rows:
+            c=dict(r); c["ca_scores"]=json.loads(c.get("ca_scores") or "[]"); out.append(c)
+        conn.close(); self.jout({"courses":out})
+
+    def add_course(self):
+        u=self.need_auth()
+        if not u or u["role"]!="student": return self.jerr("Student only",403)
+        d=self.rbody(); sem_id=d.get("semester_id"); code=d.get("code","").strip().upper(); title=d.get("title","").strip()
+        units=int(d.get("credit_units",3)); ca_w=float(d.get("ca_weight",30)); ex_w=float(d.get("exam_weight",70)); tg=d.get("target_grade","B").upper()
+        if not sem_id or not code or not title: return self.jerr("semester_id, code and title required")
+        ts=grade_to_min(tg); conn=get_db()
+        conn.execute("INSERT INTO courses(semester_id,student_id,code,title,credit_units,ca_weight,exam_weight,target_grade,target_score) VALUES(?,?,?,?,?,?,?,?,?)",(sem_id,u["id"],code,title,units,ca_w,ex_w,tg,ts)); conn.commit(); cid=conn.execute("SELECT last_insert_rowid()").fetchone()[0]; conn.close()
+        self.jout({"message":"Course added","course_id":cid,"ai_plan":ai_plan(ts,ca_w,ex_w)},201)
+
+    def log_score(self):
+        u=self.need_auth()
+        if not u or u["role"]!="student": return self.jerr("Student only",403)
+        d=self.rbody(); cid=d.get("course_id"); etype=d.get("entry_type","ca"); sc=float(d.get("score",0)); mx=float(d.get("max_score",100)); lbl=d.get("label","")
+        if not cid: return self.jerr("course_id required")
+        pct=round((sc/mx)*100,1); conn=get_db()
+        course=conn.execute("SELECT * FROM courses WHERE id=? AND student_id=?",(cid,u["id"])).fetchone()
+        if not course: conn.close(); return self.jerr("Course not found",404)
+        c=dict(course); ca=json.loads(c.get("ca_scores") or "[]")
+        if etype=="ca":
+            ca.append(pct); conn.execute("UPDATE courses SET ca_scores=? WHERE id=?",(json.dumps(ca),cid))
+        else:
+            conn.execute("UPDATE courses SET exam_score=? WHERE id=?",(pct,cid))
+            avg_ca=sum(ca)/len(ca) if ca else 0; final=round(avg_ca*(c["ca_weight"]/100)+pct*(c["exam_weight"]/100),1); g,_=score_to_grade(final)
+            conn.execute("UPDATE courses SET final_score=?,final_grade=? WHERE id=?",(final,g,cid))
+        conn.execute("INSERT INTO score_entries(course_id,student_id,entry_type,score,max_score,label) VALUES(?,?,?,?,?,?)",(cid,u["id"],etype,sc,mx,lbl)); conn.commit(); conn.close()
+        self.jout({"message":"Score logged","score_pct":pct,"ai_feedback":ai_plan(c["target_score"],c["ca_weight"],c["exam_weight"],ca)},201)
+
+    def semester_summary(self,qs=None):
+        u=self.need_auth()
+        if not u: return
+        sem_id=(qs or {}).get("semester_id",[None])[0]
+        if not sem_id: return self.jerr("semester_id required")
+        conn=get_db(); sem=conn.execute("SELECT * FROM semesters WHERE id=? AND student_id=?",(sem_id,u["id"])).fetchone()
+        if not sem: conn.close(); return self.jerr("Semester not found",404)
+        rows=conn.execute("SELECT * FROM courses WHERE semester_id=? AND student_id=?",(sem_id,u["id"])).fetchall(); conn.close()
+        courses=[]
+        for r in rows:
+            c=dict(r); c["ca_scores"]=json.loads(c.get("ca_scores") or "[]"); c["ai_plan"]=ai_plan(c["target_score"],c["ca_weight"],c["exam_weight"],c["ca_scores"]); courses.append(c)
+        on=sum(1 for c in courses if c["ai_plan"]["is_target_still_achievable"])
+        self.jout({"semester":dict(sem),"courses":courses,"gpa":semester_gpa(courses),"on_track_count":on,"off_track_count":len(courses)-on,"total_courses":len(courses)})
+
+    def profile_history(self,_=None):
+        u=self.need_auth()
+        if not u: return
+        conn=get_db(); sems=conn.execute("SELECT * FROM semesters WHERE student_id=? ORDER BY created_at ASC",(u["id"],)).fetchall()
+        hist=[]
+        for s in sems:
+            s=dict(s); rows=conn.execute("SELECT * FROM courses WHERE semester_id=?",(s["id"],)).fetchall()
+            cs=[]
+            for r in rows:
+                c=dict(r); c["ca_scores"]=json.loads(c.get("ca_scores") or "[]"); cs.append(c)
+            s["courses"]=cs; s["gpa"]=semester_gpa(cs); s["total_courses"]=len(cs); hist.append(s)
+        conn.close()
+        self.jout({"history":hist,"total_semesters":len(hist),"student":{k:u[k] for k in ("id","name","email","dept","level","matric") if k in u}})
+
+
+# ─── SERVER ───────────────────────────────────────────────────────────────────
+class Server(http.server.ThreadingHTTPServer): pass
+
+if __name__=="__main__":
+    init_db()
+    srv=Server(("0.0.0.0",PORT),Handler)
+    print(f"\n{'='*52}")
+    print(f"  StudyAI — Al-Hikmah University")
+    print(f"{'='*52}")
+    print(f"  Local:    http://localhost:{PORT}")
+    print(f"  Network:  http://0.0.0.0:{PORT}")
+    print(f"  Database: {DB_FILE}")
+    print(f"  Press Ctrl+C to stop\n")
+    try: srv.serve_forever()
+    except KeyboardInterrupt: print("\nServer stopped.")

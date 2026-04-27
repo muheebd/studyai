@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>StudyAI — Al-Hikmah University</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet"/>
+<style>
+/* ══════════════════════════════════════════════
+   StudyAI Homepage — Al-Hikmah University
+   Colours: Deep Forest Green #1a4731 + Gold #c9a84c + White
+   Font: Plus Jakarta Sans
+══════════════════════════════════════════════ */
+:root{
+  --green-deep:#1a4731; --green-mid:#2d6a4f; --green-bright:#40916c;
+  --green-light:#74c69d; --green-pale:#d8f3dc;
+  --gold:#c9a84c; --gold-light:#e8cb7a; --gold-pale:#fef9ed;
+  --white:#ffffff; --off-white:#f8faf8; --text:#1a2e22;
+  --text2:#4a6355; --muted:#7a9488; --border:#d4e8db;
+  --shadow:0 4px 24px rgba(26,71,49,0.12);
+  --shadow-lg:0 12px 48px rgba(26,71,49,0.18);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--white);color:var(--text);font-family:'Plus Jakarta Sans',sans-serif;overflow-x:hidden;font-size:15px;line-height:1.65}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:var(--green-pale)}::-webkit-scrollbar-thumb{background:var(--green-bright);border-radius:3px}
+
+/* ── NAV ── */
+nav{position:fixed;top:0;left:0;right:0;z-index:200;height:68px;display:flex;align-items:center;justify-content:space-between;padding:0 48px;background:rgba(26,71,49,0.97);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,0.1)}
+.nav-left{display:flex;align-items:center;gap:12px}
+.nav-logo-wrap{display:flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:50%;background:rgba(255,255,255,0.15);overflow:hidden;flex-shrink:0}
+.nav-logo-svg{width:38px;height:38px}
+.nav-title{display:flex;flex-direction:column}
+.nav-brand{font-size:18px;font-weight:800;color:var(--white);letter-spacing:-.3px}
+.nav-sub{font-size:10px;color:rgba(255,255,255,0.6);letter-spacing:.06em;text-transform:uppercase;margin-top:-1px}
+.nav-links{display:flex;align-items:center;gap:28px}
+.nav-link{font-size:14px;color:rgba(255,255,255,0.8);font-weight:500;cursor:pointer;transition:color .2s;text-decoration:none}
+.nav-link:hover{color:var(--white)}
+.nav-actions{display:flex;align-items:center;gap:10px}
+.btn-nav-outline{padding:8px 20px;border:1.5px solid rgba(255,255,255,0.4);border-radius:8px;color:var(--white);font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;background:none;transition:all .2s;text-decoration:none;display:inline-block}
+.btn-nav-outline:hover{border-color:var(--white);background:rgba(255,255,255,0.1)}
+.btn-nav-solid{padding:8px 22px;background:var(--gold);border:none;border-radius:8px;color:var(--text);font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;text-decoration:none;display:inline-block}
+.btn-nav-solid:hover{background:var(--gold-light);transform:translateY(-1px)}
+
+/* ── HERO ── */
+.hero{min-height:100vh;display:flex;align-items:stretch;position:relative;overflow:hidden;padding-top:68px}
+.hero-canvas{position:absolute;inset:0;z-index:0}
+.hero-left{flex:1.1;display:flex;flex-direction:column;justify-content:center;padding:70px 56px 70px 80px;position:relative;z-index:2;background:linear-gradient(135deg,var(--green-deep) 0%,var(--green-mid) 60%,rgba(45,106,79,0.95) 100%)}
+.hero-left::after{content:'';position:absolute;top:0;right:0;bottom:0;width:80px;background:linear-gradient(90deg,transparent,rgba(26,71,49,0.3));pointer-events:none}
+.hero-badge{display:inline-flex;align-items:center;gap:8px;padding:6px 14px;background:rgba(201,168,76,0.2);border:1px solid rgba(201,168,76,0.4);border-radius:20px;font-size:12px;font-weight:600;color:var(--gold-light);margin-bottom:28px}
+.hero-badge-dot{width:7px;height:7px;border-radius:50%;background:var(--gold);animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(0.8)}}
+.hero h1{font-size:clamp(32px,4.5vw,56px);font-weight:800;line-height:1.12;color:var(--white);margin-bottom:18px;letter-spacing:-.5px}
+.hero h1 em{font-style:normal;color:var(--gold)}
+.hero-desc{font-size:17px;color:rgba(255,255,255,0.78);max-width:480px;line-height:1.75;margin-bottom:36px}
+.hero-btns{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:52px}
+.btn-hero-primary{padding:14px 32px;background:var(--gold);border:none;border-radius:10px;color:var(--text);font-family:'Plus Jakarta Sans',sans-serif;font-size:15px;font-weight:700;cursor:pointer;transition:all .2s;text-decoration:none;display:inline-flex;align-items:center;gap:8px}
+.btn-hero-primary:hover{background:var(--gold-light);transform:translateY(-2px);box-shadow:0 8px 24px rgba(201,168,76,0.4)}
+.btn-hero-secondary{padding:14px 32px;background:rgba(255,255,255,0.1);border:1.5px solid rgba(255,255,255,0.3);border-radius:10px;color:var(--white);font-family:'Plus Jakarta Sans',sans-serif;font-size:15px;font-weight:600;cursor:pointer;transition:all .2s;text-decoration:none;display:inline-flex;align-items:center;gap:8px}
+.btn-hero-secondary:hover{background:rgba(255,255,255,0.18);border-color:rgba(255,255,255,0.6)}
+.hero-stats{display:flex;gap:36px}
+.hstat{text-align:center}
+.hstat-n{font-size:28px;font-weight:800;color:var(--gold)}
+.hstat-l{font-size:11px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:.06em;margin-top:2px}
+.hstat-div{width:1px;background:rgba(255,255,255,0.15);align-self:stretch}
+
+.hero-right{flex:1;position:relative;z-index:2;overflow:hidden;background:linear-gradient(135deg,#e8f5ee 0%,#d4eedf 100%)}
+.hero-img-wrap{position:absolute;inset:0;display:flex;align-items:flex-end;justify-content:center}
+.hero-student-img{width:90%;max-width:520px;height:100%;object-fit:cover;object-position:top center}
+
+/* Particle canvas */
+canvas#particles{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;opacity:.45}
+
+/* ── FEATURE STRIPS ── */
+.strips{background:var(--white);padding:0;border-bottom:1px solid var(--border)}
+.strips-inner{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:repeat(3,1fr);border-left:1px solid var(--border)}
+.strip{padding:28px 32px;border-right:1px solid var(--border);display:flex;align-items:flex-start;gap:16px;transition:background .2s}
+.strip:hover{background:var(--off-white)}
+.strip-icon{width:44px;height:44px;border-radius:10px;background:var(--green-pale);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.strip-title{font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px}
+.strip-desc{font-size:12px;color:var(--text2);line-height:1.55}
+
+/* ── SECTIONS ── */
+section{padding:90px 48px}
+.sw{max-width:1200px;margin:0 auto}
+.sec-label{display:inline-flex;align-items:center;gap:8px;font-size:11px;font-weight:700;color:var(--green-bright);text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px}
+.sec-label::before{content:'';width:18px;height:2px;background:var(--green-bright);border-radius:1px}
+.sec-title{font-size:clamp(26px,3.5vw,42px);font-weight:800;color:var(--text);line-height:1.15;letter-spacing:-.4px;margin-bottom:14px}
+.sec-sub{font-size:16px;color:var(--text2);max-width:540px;line-height:1.7}
+
+/* ── HOW IT WORKS ── */
+#how{background:var(--off-white)}
+.how-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-top:54px}
+.how-card{background:var(--white);border:1.5px solid var(--border);border-radius:16px;padding:28px 22px;transition:all .25s;position:relative}
+.how-card:hover{border-color:var(--green-bright);transform:translateY(-4px);box-shadow:var(--shadow)}
+.how-num{font-size:11px;font-weight:700;color:var(--green-bright);text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.how-num span{width:22px;height:22px;border-radius:50%;background:var(--green-pale);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:var(--green-mid)}
+.how-icon{font-size:28px;margin-bottom:14px}
+.how-title{font-size:15px;font-weight:700;color:var(--text);margin-bottom:8px}
+.how-desc{font-size:13px;color:var(--text2);line-height:1.6}
+
+/* ── DASHBOARD PREVIEW ── */
+#preview{background:var(--white)}
+.preview-grid{display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-top:54px;align-items:start}
+.preview-cards{display:flex;flex-direction:column;gap:16px}
+.pcard{background:var(--white);border:1.5px solid var(--border);border-radius:14px;padding:22px;transition:all .2s}
+.pcard:hover{border-color:var(--green-bright);box-shadow:var(--shadow)}
+.pcard-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.pcard-title{font-size:14px;font-weight:700;color:var(--text)}
+.badge-green{background:var(--green-pale);color:var(--green-mid);padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600}
+.badge-gold{background:var(--gold-pale);color:#8a6914;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600}
+.badge-red{background:#fef2f2;color:#b91c1c;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600}
+.course-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.cr-code{width:72px;font-size:11px;font-weight:700;color:var(--green-mid);flex-shrink:0}
+.cr-bar-wrap{flex:1;height:6px;background:var(--green-pale);border-radius:3px;overflow:hidden}
+.cr-bar{height:100%;border-radius:3px;background:var(--green-bright)}
+.cr-pct{width:36px;font-size:12px;font-weight:700;text-align:right;flex-shrink:0}
+.preview-hero{background:linear-gradient(135deg,var(--green-deep),var(--green-mid));border-radius:20px;padding:32px;color:var(--white);display:flex;flex-direction:column;gap:20px;position:relative;overflow:hidden}
+.preview-hero::before{content:'';position:absolute;top:-60px;right:-60px;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,0.05)}
+.ph-title{font-size:20px;font-weight:800;margin-bottom:6px}
+.ph-sub{font-size:13px;color:rgba(255,255,255,0.7);line-height:1.55}
+.ph-metric{background:rgba(255,255,255,0.12);border-radius:10px;padding:14px 16px}
+.phm-label{font-size:11px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+.phm-val{font-size:24px;font-weight:800;color:var(--gold)}
+.phm-sub{font-size:12px;color:rgba(255,255,255,0.6);margin-top:2px}
+.ai-bubble{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:10px;padding:14px;font-size:13px;color:rgba(255,255,255,0.9);line-height:1.6}
+.ai-bubble strong{color:var(--gold)}
+
+/* ── PORTALS ── */
+#portals{background:var(--off-white)}
+.portals-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:54px}
+.portal{border-radius:20px;padding:38px;position:relative;overflow:hidden;transition:transform .2s;display:flex;flex-direction:column}
+.portal:hover{transform:translateY(-5px)}
+.portal-s{background:linear-gradient(135deg,var(--green-deep),var(--green-mid));border:1.5px solid var(--green-mid)}
+.portal-a{background:linear-gradient(135deg,#2c1810,#5c2d1a);border:1.5px solid #7a3d22}
+.portal::before{content:'';position:absolute;top:-80px;right:-80px;width:240px;height:240px;border-radius:50%;background:rgba(255,255,255,0.04);pointer-events:none}
+.portal-icon{width:56px;height:56px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:26px;margin-bottom:20px;background:rgba(255,255,255,0.15)}
+.portal-title{font-size:22px;font-weight:800;color:var(--white);margin-bottom:10px}
+.portal-desc{font-size:14px;color:rgba(255,255,255,0.72);line-height:1.7;margin-bottom:22px;flex:1}
+.portal-list{display:flex;flex-direction:column;gap:8px;margin-bottom:28px}
+.pli{display:flex;align-items:center;gap:10px;font-size:13px;color:rgba(255,255,255,0.8)}
+.pli::before{content:'✓';font-size:12px;font-weight:800;color:var(--gold);flex-shrink:0}
+.portal-btn{display:flex;align-items:center;justify-content:space-between;padding:13px 20px;border-radius:10px;font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;font-weight:700;color:var(--text);cursor:pointer;border:none;transition:all .15s;text-decoration:none;background:var(--gold)}
+.portal-btn:hover{background:var(--gold-light);transform:translateY(-1px)}
+
+/* ── GRADES TABLE ── */
+#grades{background:var(--white)}
+.grades-grid{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:start;margin-top:54px}
+.grade-table{border:1.5px solid var(--border);border-radius:14px;overflow:hidden}
+.gt-head{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;background:var(--green-deep);padding:12px 16px;gap:8px}
+.gt-hcell{font-size:11px;font-weight:700;color:rgba(255,255,255,0.8);text-transform:uppercase;letter-spacing:.06em}
+.gt-row{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;padding:12px 16px;gap:8px;border-top:1px solid var(--border);transition:background .15s}
+.gt-row:hover{background:var(--off-white)}
+.gt-cell{font-size:13px;color:var(--text2)}
+.gt-grade{font-size:14px;font-weight:800}
+.g-a{color:var(--green-mid)}.g-b{color:#1d6fb5}.g-c{color:#b07d12}.g-d{color:#c46a0c}.g-f{color:#c0392b}
+.assmt-breakdown{background:var(--green-deep);border-radius:14px;padding:28px;color:var(--white)}
+.ab-title{font-size:16px;font-weight:700;margin-bottom:18px;color:var(--gold)}
+.ab-item{display:flex;align-items:center;gap:14px;margin-bottom:16px}
+.ab-circle{width:60px;height:60px;border-radius:50%;border:4px solid;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;flex-shrink:0}
+.ab-ca{border-color:var(--gold);color:var(--gold)}
+.ab-ex{border-color:#74c69d;color:#74c69d}
+.ab-body{}
+.ab-name{font-size:14px;font-weight:700;margin-bottom:3px}
+.ab-desc{font-size:12px;color:rgba(255,255,255,0.65);line-height:1.55}
+
+/* ── TEAM ── */
+#team{background:var(--off-white)}
+.team-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:54px}
+.team-card{background:var(--white);border:1.5px solid var(--border);border-radius:16px;padding:28px;text-align:center;transition:all .2s}
+.team-card:hover{border-color:var(--green-bright);transform:translateY(-3px);box-shadow:var(--shadow)}
+.team-av{width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,var(--green-deep),var(--green-mid));display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:var(--white);margin:0 auto 14px}
+.team-name{font-size:15px;font-weight:700;margin-bottom:3px}
+.team-matric{font-size:12px;color:var(--green-bright);font-weight:600;margin-bottom:6px}
+.team-role{font-size:13px;color:var(--text2)}
+.supervisor{background:linear-gradient(135deg,var(--green-deep),var(--green-mid));border-radius:16px;padding:28px;text-align:center;margin-top:20px;color:var(--white)}
+.sv-lbl{font-size:11px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
+.sv-name{font-size:18px;font-weight:700}
+.sv-title{font-size:13px;color:rgba(255,255,255,0.7);margin-top:4px}
+
+/* ── SETUP ── */
+#setup{background:var(--green-deep)}
+.setup-inner{max-width:900px;margin:0 auto;text-align:center}
+.setup-inner .sec-title{color:var(--white)}
+.setup-inner .sec-sub{color:rgba(255,255,255,0.72);max-width:100%;margin:0 auto}
+.setup-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:48px}
+.ss{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:14px;padding:24px;text-align:left}
+.ss-n{width:32px;height:32px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:var(--text);margin-bottom:14px}
+.ss-title{font-size:14px;font-weight:700;color:var(--white);margin-bottom:8px}
+.ss-desc{font-size:13px;color:rgba(255,255,255,0.65);line-height:1.6}
+.setup-code{background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.15);border-radius:10px;padding:16px 20px;font-family:'Courier New',monospace;font-size:14px;color:#74c69d;margin-top:12px;text-align:left}
+.setup-warn{background:rgba(201,168,76,0.15);border:1px solid rgba(201,168,76,0.3);border-radius:10px;padding:14px 18px;font-size:13px;color:var(--gold-light);line-height:1.65;margin-top:24px}
+
+/* ── FOOTER ── */
+footer{background:var(--text);padding:36px 48px;text-align:center}
+.footer-brand{font-size:18px;font-weight:800;color:var(--white);margin-bottom:8px;display:flex;align-items:center;justify-content:center;gap:8px}
+.footer-text{font-size:13px;color:rgba(255,255,255,0.5);line-height:1.7}
+
+/* ── ANIMATIONS ── */
+@keyframes fadeUp{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:translateY(0)}}
+.reveal{opacity:0;transform:translateY(22px);transition:opacity .65s ease,transform .65s ease}
+.reveal.visible{opacity:1;transform:translateY(0)}
+.hero-left>*{animation:fadeUp .6s ease both}
+.hero-badge{animation-delay:.1s}
+.hero h1{animation-delay:.2s}
+.hero-desc{animation-delay:.3s}
+.hero-btns{animation-delay:.4s}
+.hero-stats{animation-delay:.5s}
+
+@media(max-width:1024px){
+  .hero{flex-direction:column;min-height:auto}
+  .hero-left{padding:80px 32px 48px}
+  .hero-right{height:380px}
+  .how-grid{grid-template-columns:1fr 1fr}
+  .preview-grid,.portals-grid,.grades-grid{grid-template-columns:1fr}
+  nav{padding:0 24px}.nav-links{display:none}
+}
+@media(max-width:700px){
+  section{padding:64px 20px}
+  nav{padding:0 18px}
+  .hero-left{padding:80px 20px 40px}
+  .how-grid,.setup-steps,.team-grid{grid-template-columns:1fr}
+  .strips-inner{grid-template-columns:1fr}
+  .strip:last-child{border-right:none;border-bottom:1px solid var(--border)}
+}
+</style>
+</head>
+<body>
+
+<!-- ══ NAV ══ -->
+<nav>
+  <div class="nav-left">
+    <div class="nav-logo-wrap">
+      <!-- Al-Hikmah University SVG Logo approximation (circular seal) -->
+      <svg class="nav-logo-svg" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="50" cy="50" r="48" fill="none" stroke="rgba(255,255,255,0.8)" stroke-width="1.5"/>
+        <circle cx="50" cy="50" r="38" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1"/>
+        <!-- Open book -->
+        <path d="M30 52 Q40 44 50 48 Q60 44 70 52 L70 62 Q60 54 50 58 Q40 54 30 62Z" fill="rgba(201,168,76,0.9)"/>
+        <path d="M50 48 L50 62" stroke="rgba(201,168,76,0.9)" stroke-width="1.5"/>
+        <!-- Torch/lamp -->
+        <path d="M50 28 Q53 32 52 36 Q50 38 48 36 Q47 32 50 28Z" fill="rgba(201,168,76,0.9)"/>
+        <line x1="50" y1="36" x2="50" y2="44" stroke="rgba(201,168,76,0.6)" stroke-width="1.5"/>
+        <!-- Stars -->
+        <circle cx="36" cy="34" r="1.5" fill="rgba(255,255,255,0.7)"/>
+        <circle cx="64" cy="34" r="1.5" fill="rgba(255,255,255,0.7)"/>
+        <circle cx="28" cy="46" r="1.5" fill="rgba(255,255,255,0.7)"/>
+        <circle cx="72" cy="46" r="1.5" fill="rgba(255,255,255,0.7)"/>
+        <!-- Text arc approximation -->
+        <text x="50" y="22" text-anchor="middle" font-size="5.5" fill="rgba(255,255,255,0.85)" font-family="serif" font-weight="600">AL-HIKMAH</text>
+        <text x="50" y="82" text-anchor="middle" font-size="4.5" fill="rgba(255,255,255,0.7)" font-family="serif">UNIVERSITY</text>
+        <text x="50" y="91" text-anchor="middle" font-size="4" fill="rgba(255,255,255,0.6)" font-family="serif">ILORIN, NIGERIA</text>
+      </svg>
+    </div>
+    <div class="nav-title">
+      <div class="nav-brand">StudyAI</div>
+      <div class="nav-sub">Al-Hikmah University</div>
+    </div>
+  </div>
+  <div class="nav-links">
+    <a href="#how" class="nav-link">How It Works</a>
+    <a href="#preview" class="nav-link">Dashboard</a>
+    <a href="#grades" class="nav-link">Grading System</a>
+    <a href="#setup" class="nav-link">Setup</a>
+    <a href="#team" class="nav-link">Team</a>
+  </div>
+  <div class="nav-actions">
+    <a href="/admin" class="btn-nav-outline">Lecturer Portal</a>
+    <a href="/student" class="btn-nav-solid">Student Portal</a>
+  </div>
+</nav>
+
+<!-- ══ HERO ══ -->
+<section class="hero">
+  <canvas id="particles"></canvas>
+  <div class="hero-left">
+    <div class="hero-badge"><div class="hero-badge-dot"></div> Faculty of Computing, Engineering &amp; Technology</div>
+    <h1>An Artificial Intelligence <br/><em>Study Recommendation</em><br/>&amp; Support System</h1>
+    <p class="hero-desc">Tell the AI your courses and target grades. It plans exactly what you need in each test and exam to hit your goal — then tracks your progress every step of the way.</p>
+    <div class="hero-btns">
+      <a href="/student" class="btn-hero-primary">🎓 Start as Student →</a>
+      <a href="/admin" class="btn-hero-secondary">👨‍🏫 Lecturer / Admin</a>
+    </div>
+    <div class="hero-stats">
+      <div class="hstat"><div class="hstat-n">4</div><div class="hstat-l">ML Models</div></div>
+      <div class="hstat-div"></div>
+      <div class="hstat"><div class="hstat-n">5.0</div><div class="hstat-l">GPA Scale</div></div>
+      <div class="hstat-div"></div>
+      <div class="hstat"><div class="hstat-n">100%</div><div class="hstat-l">Personalised</div></div>
+      <div class="hstat-div"></div>
+      <div class="hstat"><div class="hstat-n">Live</div><div class="hstat-l">AI Tracking</div></div>
+    </div>
+  </div>
+  <div class="hero-right">
+    <!-- Real photo: student studying at desk with laptop - Unsplash free licence -->
+    <div style="position:absolute;inset:0;overflow:hidden">
+      <img
+        src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=900&q=85&auto=format&fit=crop"
+        alt="Students studying together with laptops"
+        style="width:100%;height:100%;object-fit:cover;object-position:center top"
+        onerror="this.parentElement.style.background='linear-gradient(135deg,#e8f5ee,#c8e6d4)';this.style.display='none'"
+      />
+      <!-- Green tint overlay to match brand colours -->
+      <div style="position:absolute;inset:0;background:linear-gradient(135deg,rgba(26,71,49,0.18) 0%,rgba(45,106,79,0.08) 50%,transparent 100%)"></div>
+      <!-- Floating AI badge -->
+      <div style="position:absolute;bottom:48px;left:36px;background:rgba(26,71,49,0.92);backdrop-filter:blur(12px);border:1px solid rgba(201,168,76,0.4);border-radius:14px;padding:14px 18px;max-width:220px">
+        <div style="font-size:10px;color:rgba(255,255,255,0.6);font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">🤖 AI Feedback</div>
+        <div style="font-size:13px;color:#fff;font-weight:600;line-height:1.5">You need <span style="color:#c9a84c">68%</span> in your exam to reach your <span style="color:#74c69d">Grade B</span> target in CSC 301.</div>
+      </div>
+      <!-- Floating score badge -->
+      <div style="position:absolute;top:48px;right:36px;background:rgba(201,168,76,0.95);border-radius:12px;padding:10px 16px;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,0.2)">
+        <div style="font-size:10px;color:rgba(26,71,49,0.8);font-weight:700;text-transform:uppercase;letter-spacing:.06em">Target</div>
+        <div style="font-size:28px;font-weight:800;color:#1a4731;line-height:1">A</div>
+        <div style="font-size:10px;color:rgba(26,71,49,0.7);font-weight:600">On Track ✓</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- STRIPS -->
+<div class="strips">
+  <div class="strips-inner">
+    <div class="strip">
+      <div class="strip-icon">🎯</div>
+      <div><div class="strip-title">Set Your Targets</div><div class="strip-desc">Enter your courses and desired grades. The AI plans exactly what scores you need.</div></div>
+    </div>
+    <div class="strip">
+      <div class="strip-icon">📊</div>
+      <div><div class="strip-title">Log Your Results</div><div class="strip-desc">Upload CA scores after each test. AI recalculates what you need to stay on track.</div></div>
+    </div>
+    <div class="strip">
+      <div class="strip-icon">🏆</div>
+      <div><div class="strip-title">Hit Your Goal</div><div class="strip-desc">Follow the AI plan semester by semester. Build a permanent academic profile and history.</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- HOW IT WORKS -->
+<section id="how">
+  <div class="sw">
+    <div class="reveal">
+      <div class="sec-label">The Process</div>
+      <div class="sec-title">How StudyAI Works For You</div>
+      <div class="sec-sub">From your first login to finishing your final exam — a complete AI-powered academic journey.</div>
+    </div>
+    <div class="how-grid reveal">
+      <div class="how-card"><div class="how-num"><span>1</span> Step One</div><div class="how-icon">👤</div><div class="how-title">Create Your Profile</div><div class="how-desc">Register with your matric number, department and level. Your profile is permanent — access it any time from any device.</div></div>
+      <div class="how-card"><div class="how-num"><span>2</span> Step Two</div><div class="how-icon">📚</div><div class="how-title">List Your Courses</div><div class="how-desc">Add all courses for the semester. Set your target grade for each one — A, B, C or D. The AI knows what each grade requires.</div></div>
+      <div class="how-card"><div class="how-num"><span>3</span> Step Three</div><div class="how-icon">🧠</div><div class="how-title">Get Your AI Plan</div><div class="how-desc">Instantly see what you need in your CA tests and final exam for each course to hit your target. Clear, specific numbers.</div></div>
+      <div class="how-card"><div class="how-num"><span>4</span> Step Four</div><div class="how-icon">📈</div><div class="how-title">Track &amp; Adjust</div><div class="how-desc">Log your CA scores as you get them. The AI recalculates live — telling you exactly what exam score you now need, and whether your target is still achievable.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- DASHBOARD PREVIEW -->
+<section id="preview">
+  <div class="sw">
+    <div class="reveal">
+      <div class="sec-label">Dashboard Preview</div>
+      <div class="sec-title">Your Semester at a Glance</div>
+      <div class="sec-sub">Everything about your academic performance in one personalised dashboard.</div>
+    </div>
+    <div class="preview-grid reveal">
+      <div class="preview-cards">
+        <div class="pcard">
+          <div class="pcard-header"><div class="pcard-title">Current Semester Progress</div><span class="badge-green">3 courses on track</span></div>
+          <div class="course-row"><div class="cr-code">CSC 301</div><div class="cr-bar-wrap"><div class="cr-bar" style="width:82%"></div></div><div class="cr-pct" style="color:#2d6a4f">82%</div></div>
+          <div class="course-row"><div class="cr-code">MTH 201</div><div class="cr-bar-wrap"><div class="cr-bar" style="width:65%;background:#c9a84c"></div></div><div class="cr-pct" style="color:#8a6914">65%</div></div>
+          <div class="course-row"><div class="cr-code">ENG 101</div><div class="cr-bar-wrap"><div class="cr-bar" style="width:48%;background:#dc6b1f"></div></div><div class="cr-pct" style="color:#b84d0d">48%</div></div>
+          <div class="course-row"><div class="cr-code">PHY 203</div><div class="cr-bar-wrap"><div class="cr-bar" style="width:74%"></div></div><div class="cr-pct" style="color:#2d6a4f">74%</div></div>
+        </div>
+        <div class="pcard">
+          <div class="pcard-header"><div class="pcard-title">AI Alerts</div><span class="badge-gold">1 needs attention</span></div>
+          <div style="font-size:13px;color:var(--text2);line-height:1.7;padding:4px 0">
+            <div style="display:flex;gap:8px;margin-bottom:8px"><span>⚠️</span><span><strong style="color:var(--text)">ENG 101:</strong> Your CA average (48%) means you need <strong style="color:#c46a0c">85%+ in the exam</strong> to reach your B target. Increase revision time.</span></div>
+            <div style="display:flex;gap:8px"><span>✅</span><span><strong style="color:var(--text)">CSC 301:</strong> Excellent CA progress. You only need 68% in the exam to secure your A target.</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="preview-hero">
+        <div>
+          <div class="ph-title">AI Semester Planner</div>
+          <div class="ph-sub">For CSC 301 — Target Grade: A (70%+)</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="ph-metric"><div class="phm-label">CA Target (30%)</div><div class="phm-val">21+</div><div class="phm-sub">out of 30 marks</div></div>
+          <div class="ph-metric"><div class="phm-label">Exam Target (70%)</div><div class="phm-val">49+</div><div class="phm-sub">out of 70 marks</div></div>
+        </div>
+        <div class="ph-metric"><div class="phm-label">After CA1 (score: 72%)</div><div class="phm-val" style="color:#74c69d">68% Exam Needed</div><div class="phm-sub">Target is still achievable ✓</div></div>
+        <div class="ai-bubble">
+          <strong>AI says:</strong> Your CA score contributes 21.6 marks. To reach 70 total, you need at least 68.4% in your final exam. You're well on track — keep studying consistently and focus on past questions.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PORTALS -->
+<section id="portals">
+  <div class="sw">
+    <div class="reveal" style="text-align:center">
+      <div class="sec-label" style="justify-content:center">Access</div>
+      <div class="sec-title">Choose Your Portal</div>
+      <div class="sec-sub" style="margin:0 auto">Two separate portals — one for students, one for academic staff. Both require account registration.</div>
+    </div>
+    <div class="portals-grid reveal">
+      <div class="portal portal-s">
+        <div class="portal-icon">🎓</div>
+        <div class="portal-title">Student Portal</div>
+        <div class="portal-desc">Your personal AI academic advisor. Plan your semester, track every score, and get live feedback on whether you're on course to hit your targets.</div>
+        <div class="portal-list">
+          <div class="pli">Create a permanent profile with your courses and targets</div>
+          <div class="pli">AI calculates exactly what you need in each CA and exam</div>
+          <div class="pli">Log your actual scores — AI updates the plan immediately</div>
+          <div class="pli">See if your target is still achievable, or get a revised plan</div>
+          <div class="pli">Full semester history and GPA tracking across all semesters</div>
+        </div>
+        <a href="/student" class="portal-btn">Enter Student Portal <span>→</span></a>
+      </div>
+      <div class="portal portal-a">
+        <div class="portal-icon">👨‍🏫</div>
+        <div class="portal-title">Lecturer / Admin Portal</div>
+        <div class="portal-desc">Monitor every student's academic progress, view class-wide analytics, upload resources, and receive AI alerts when students are at risk.</div>
+        <div class="portal-list">
+          <div class="pli">View real-time class performance and score distributions</div>
+          <div class="pli">AI-flagged at-risk students with detailed reasons</div>
+          <div class="pli">Send intervention messages directly to struggling students</div>
+          <div class="pli">Upload study resources tagged to specific courses</div>
+          <div class="pli">Full student profiles and semester histories</div>
+        </div>
+        <a href="/admin" class="portal-btn" style="background:#c9a84c">Enter Admin Portal <span>→</span></a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- GRADING SYSTEM -->
+<section id="grades">
+  <div class="sw">
+    <div class="reveal">
+      <div class="sec-label">Grading System</div>
+      <div class="sec-title">Al-Hikmah University Scale</div>
+      <div class="sec-sub">The AI uses this exact grading system to calculate what you need in every assessment.</div>
+    </div>
+    <div class="grades-grid reveal">
+      <div class="grade-table">
+        <div class="gt-head"><div class="gt-hcell">Score</div><div class="gt-hcell">Grade</div><div class="gt-hcell">Points (5.0)</div><div class="gt-hcell">Meaning</div></div>
+        <div class="gt-row"><div class="gt-cell">70 – 100</div><div class="gt-grade g-a">A</div><div class="gt-cell">5.0</div><div class="gt-cell">Excellent</div></div>
+        <div class="gt-row"><div class="gt-cell">60 – 69</div><div class="gt-grade g-b">B</div><div class="gt-cell">4.0</div><div class="gt-cell">Very Good</div></div>
+        <div class="gt-row"><div class="gt-cell">50 – 59</div><div class="gt-grade g-c">C</div><div class="gt-cell">3.0</div><div class="gt-cell">Good</div></div>
+        <div class="gt-row"><div class="gt-cell">45 – 49</div><div class="gt-grade g-d">D</div><div class="gt-cell">2.0</div><div class="gt-cell">Fair</div></div>
+        <div class="gt-row"><div class="gt-cell">0 – 44</div><div class="gt-grade g-f">F</div><div class="gt-cell">0.0</div><div class="gt-cell">Fail</div></div>
+      </div>
+      <div class="assmt-breakdown">
+        <div class="ab-title">Assessment Breakdown</div>
+        <div class="ab-item">
+          <div class="ab-circle ab-ca">30%</div>
+          <div class="ab-body">
+            <div class="ab-name">Continuous Assessment (CA)</div>
+            <div class="ab-desc">Mid-semester tests, weekly quizzes, and laboratory practicals. Usually 1–2 tests across the semester. Crucial for Network Security and coding courses.</div>
+          </div>
+        </div>
+        <div class="ab-item">
+          <div class="ab-circle ab-ex">70%</div>
+          <div class="ab-body">
+            <div class="ab-name">Final Examination</div>
+            <div class="ab-desc">Comprehensive theoretical or practical exam held at the end of the semester. This is the largest component — the AI tells you exactly what score you need here.</div>
+          </div>
+        </div>
+        <div style="background:rgba(255,255,255,0.08);border-radius:8px;padding:12px 14px;margin-top:4px;font-size:12px;color:rgba(255,255,255,0.65);line-height:1.6">
+          💡 <strong style="color:rgba(255,255,255,0.85)">Example:</strong> If your target is A (70%) and you score 65% in CA, you contributed 65 × 0.30 = 19.5 marks. You still need 50.5 out of 70 from your exam — which is 72.1%. The AI calculates all of this for you instantly.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TEAM -->
+<section id="team">
+  <div class="sw">
+    <div class="reveal" style="text-align:center">
+      <div class="sec-label" style="justify-content:center">The Team</div>
+      <div class="sec-title">Built By</div>
+    </div>
+    <div class="team-grid reveal">
+      <div class="team-card"><div class="team-av">BB</div><div class="team-name">Bello Muhammad Bello</div><div class="team-matric">22/03SEN023</div><div class="team-role">Full-Stack &amp; ML Engine</div></div>
+      <div class="team-card"><div class="team-av">AA</div><div class="team-name">Ahmed Abdulbaqqi Adavuruku</div><div class="team-matric">22/03CMP006</div><div class="team-role">Backend API &amp; Database</div></div>
+      <div class="team-card"><div class="team-av">AY</div><div class="team-name">Abdulrazak Yahaya Ibrahim</div><div class="team-matric">22/03CMP041</div><div class="team-role">Frontend Design &amp; UI/UX</div></div>
+    </div>
+    <div class="supervisor reveal"><div class="sv-lbl">Project Supervisor</div><div class="sv-name">Engr. Mrs. Aishat Jimoh-Mahmud</div><div class="sv-title">Faculty of Computing, Engineering &amp; Technology · Al-Hikmah University, Ilorin</div></div>
+  </div>
+</section>
+
+<!-- SETUP -->
+<section id="setup">
+  <div class="setup-inner">
+    <div class="reveal">
+      <div class="sec-label" style="justify-content:center;color:rgba(255,255,255,0.6)">Getting Started</div>
+      <div class="sec-title">Run in 3 Steps</div>
+      <div class="sec-sub">Pure Python — no framework needed. If Python is installed, you're ready to go.</div>
+    </div>
+    <div class="setup-steps reveal">
+      <div class="ss">
+        <div class="ss-n">1</div>
+        <div class="ss-title">Install Python</div>
+        <div class="ss-desc">Download from python.org. <strong style="color:var(--gold)">Tick "Add Python to PATH"</strong> during installation — this is required on Windows.</div>
+        <div class="setup-code">pip install scikit-learn numpy</div>
+      </div>
+      <div class="ss">
+        <div class="ss-n">2</div>
+        <div class="ss-title">Start the Server</div>
+        <div class="ss-desc"><strong style="color:var(--gold)">Windows:</strong> Double-click <code style="background:rgba(0,0,0,.3);padding:1px 5px;border-radius:3px">START_SERVER.bat</code><br/><br/><strong style="color:var(--gold)">Mac/Linux:</strong> Run in terminal:</div>
+        <div class="setup-code">cd backend<br/>python server.py</div>
+      </div>
+      <div class="ss">
+        <div class="ss-n">3</div>
+        <div class="ss-title">Open &amp; Register</div>
+        <div class="ss-desc">Open <code style="background:rgba(0,0,0,.3);padding:1px 5px;border-radius:3px">index.html</code> in Chrome or Firefox. Click a portal, create your account, and start planning your semester.</div>
+      </div>
+    </div>
+    <div class="setup-warn reveal">
+      ⚠️ <strong>Windows Users:</strong> Do not type <code style="background:rgba(0,0,0,.2);padding:1px 5px;border-radius:3px">python3</code> — use <code style="background:rgba(0,0,0,.2);padding:1px 5px;border-radius:3px">python</code> instead, or just double-click <code style="background:rgba(0,0,0,.2);padding:1px 5px;border-radius:3px">START_SERVER.bat</code> and it handles everything automatically.
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-brand">
+    <svg width="22" height="22" viewBox="0 0 100 100" fill="none"><circle cx="50" cy="50" r="48" stroke="rgba(255,255,255,0.4)" stroke-width="2"/><path d="M30 52 Q40 44 50 48 Q60 44 70 52 L70 62 Q60 54 50 58 Q40 54 30 62Z" fill="#c9a84c"/><path d="M50 48 L50 62" stroke="#c9a84c" stroke-width="1.5"/></svg>
+    StudyAI — Al-Hikmah University
+  </div>
+  <div class="footer-text">
+    AI-Based Student Recommendation System · Faculty of Computing, Engineering &amp; Technology<br/>
+    Bello Muhammad · Ahmed Abdulbaqqi · Abdulrazak Yahaya · Supervised by Engr. Mrs. Aishat Jimoh-Mahmud<br/>
+    <span style="color:rgba(255,255,255,0.3)">January 2026 · Ilorin, Nigeria</span>
+  </div>
+</footer>
+
+<script>
+/* ── PARTICLE ANIMATION ── */
+(function(){
+  const canvas = document.getElementById('particles');
+  const hero = document.querySelector('.hero-left');
+  if(!canvas || !hero) return;
+  canvas.style.position='absolute';
+  canvas.style.inset='0';
+  canvas.style.zIndex='1';
+  canvas.style.pointerEvents='none';
+  hero.style.position='relative';
+  hero.appendChild(canvas);
+
+  const ctx = canvas.getContext('2d');
+  let W, H, particles = [], animId;
+
+  function resize(){
+    W = canvas.width  = hero.offsetWidth;
+    H = canvas.height = hero.offsetHeight;
+  }
+
+  function Particle(){
+    this.reset = function(){
+      this.x  = Math.random() * W;
+      this.y  = Math.random() * H;
+      this.r  = Math.random() * 2.5 + 0.5;
+      this.vx = (Math.random() - 0.5) * 0.4;
+      this.vy = (Math.random() - 0.5) * 0.4;
+      this.a  = Math.random() * 0.5 + 0.1;
+      this.gold = Math.random() > 0.7;
+    };
+    this.reset();
+  }
+
+  function init(){
+    resize();
+    particles = [];
+    const n = Math.min(Math.floor(W * H / 8000), 120);
+    for(let i=0;i<n;i++) particles.push(new Particle());
+  }
+
+  function draw(){
+    ctx.clearRect(0, 0, W, H);
+    particles.forEach(p => {
+      p.x += p.vx; p.y += p.vy;
+      if(p.x < 0) p.x = W; if(p.x > W) p.x = 0;
+      if(p.y < 0) p.y = H; if(p.y > H) p.y = 0;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+      ctx.fillStyle = p.gold ? `rgba(201,168,76,${p.a})` : `rgba(255,255,255,${p.a})`;
+      ctx.fill();
+    });
+    // Draw connecting lines between nearby particles
+    for(let i=0; i<particles.length; i++){
+      for(let j=i+1; j<particles.length; j++){
+        const dx = particles[i].x - particles[j].x;
+        const dy = particles[i].y - particles[j].y;
+        const d  = Math.sqrt(dx*dx + dy*dy);
+        if(d < 80){
+          ctx.beginPath();
+          ctx.moveTo(particles[i].x, particles[i].y);
+          ctx.lineTo(particles[j].x, particles[j].y);
+          ctx.strokeStyle = `rgba(255,255,255,${0.06*(1-d/80)})`;
+          ctx.lineWidth = 0.5;
+          ctx.stroke();
+        }
+      }
+    }
+    animId = requestAnimationFrame(draw);
+  }
+
+  init();
+  draw();
+  window.addEventListener('resize', ()=>{ cancelAnimationFrame(animId); init(); draw(); });
+})();
+
+/* ── SCROLL REVEAL ── */
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => { if(e.isIntersecting){ e.target.classList.add('visible'); observer.unobserve(e.target); }});
+}, {threshold: 0.1});
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+/* ── SMOOTH NAV SCROLL ── */
+document.querySelectorAll('a[href^="#"]').forEach(a => {
+  a.addEventListener('click', e => {
+    const t = document.querySelector(a.getAttribute('href'));
+    if(t){ e.preventDefault(); t.scrollIntoView({behavior:'smooth'}); }
+  });
+});
+</script>
+</body>
+</html>
