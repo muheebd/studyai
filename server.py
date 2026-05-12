@@ -15,7 +15,7 @@ PORT       = int(os.environ.get("PORT", 8000))   # Railway sets PORT automatical
 DB_FILE    = os.path.join(os.path.dirname(os.path.abspath(__file__)), "studyai.db")
 JWT_SECRET = os.environ.get("JWT_SECRET", "studyai-alhikmah-secret-2026")
 JWT_EXPIRY = 86400
-ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")   # Set this in Railway Variables
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")   # Set this in Railway Variables
 
 # Static files served by this server
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -215,37 +215,41 @@ class Engine:
 
 ENGINE=Engine()
 
-# ─── CLAUDE AI HELPER ─────────────────────────────────────────────────────────
-def call_claude(messages, system_prompt, max_tokens=3500):
-    """Call Anthropic Claude API using stdlib urllib — no new pip packages needed."""
-    if not ANTHROPIC_API_KEY:
-        raise Exception("ANTHROPIC_API_KEY environment variable is not set in Railway.")
+# ─── GEMINI AI HELPER ─────────────────────────────────────────────────────────
+def call_gemini(prompt, system_prompt, max_tokens=3500):
+    """Call Google Gemini API using stdlib urllib — no new pip packages needed."""
+    if not GEMINI_API_KEY:
+        raise Exception("GEMINI_API_KEY environment variable is not set in Railway.")
+
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}"
 
     payload = json.dumps({
-        "model": "claude-sonnet-4-20250514",
-        "max_tokens": max_tokens,
-        "system": system_prompt,
-        "messages": messages
+        "system_instruction": {
+            "parts": [{"text": system_prompt}]
+        },
+        "contents": [
+            {"role": "user", "parts": [{"text": prompt}]}
+        ],
+        "generationConfig": {
+            "maxOutputTokens": max_tokens,
+            "temperature": 0.7
+        }
     }).encode("utf-8")
 
     req = urllib.request.Request(
-        "https://api.anthropic.com/v1/messages",
+        url,
         data=payload,
-        headers={
-            "Content-Type": "application/json",
-            "x-api-key": ANTHROPIC_API_KEY,
-            "anthropic-version": "2023-06-01"
-        },
+        headers={"Content-Type": "application/json"},
         method="POST"
     )
 
     try:
         with urllib.request.urlopen(req, timeout=60) as resp:
             data = json.loads(resp.read().decode("utf-8"))
-            return data["content"][0]["text"]
+            return data["candidates"][0]["content"]["parts"][0]["text"]
     except urllib.error.HTTPError as e:
         body = e.read().decode("utf-8")
-        raise Exception(f"Anthropic API error {e.code}: {body}")
+        raise Exception(f"Gemini API error {e.code}: {body}")
 
 # ─── JWT + PASSWORD ───────────────────────────────────────────────────────────
 def _b64u(d): return base64.urlsafe_b64encode(d).rstrip(b'=').decode()
@@ -533,10 +537,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
         u = self.need_auth()
         if not u: return
 
-        if not ANTHROPIC_API_KEY:
+        if not GEMINI_API_KEY:
             return self.jerr(
                 "AI recommendations are not yet configured. "
-                "Please ask your administrator to add the ANTHROPIC_API_KEY to Railway environment variables.",
+                "Please ask your administrator to add the GEMINI_API_KEY to Railway environment variables.",
                 503
             )
 
@@ -706,7 +710,7 @@ Important rules:
 """
 
         try:
-            raw = call_claude([{"role": "user", "content": PROMPT}], SYSTEM, max_tokens=3500)
+            raw = call_gemini(PROMPT, SYSTEM, max_tokens=3500)
             clean = raw.replace("```json", "").replace("```", "").strip()
             rec_data = json.loads(clean)
             self.jout({
@@ -930,7 +934,7 @@ if __name__=="__main__":
     print(f"  Local:    http://localhost:{PORT}")
     print(f"  Network:  http://0.0.0.0:{PORT}")
     print(f"  Database: {DB_FILE}")
-    print(f"  API key:  {'✅ Set' if ANTHROPIC_API_KEY else '❌ Missing — add ANTHROPIC_API_KEY to Railway'}")
+    print(f"  API key:  {'✅ Set' if GEMINI_API_KEY else '❌ Missing — add GEMINI_API_KEY to Railway'}")
     print(f"  Press Ctrl+C to stop\n")
     try: srv.serve_forever()
     except KeyboardInterrupt: print("\nServer stopped.")
