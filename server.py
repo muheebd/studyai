@@ -7,6 +7,7 @@ Deploy:      Railway / Render / any platform that runs Python
 """
 
 import http.server, json, sqlite3, hashlib, hmac, base64, time, os, mimetypes
+import urllib.request, urllib.error
 from urllib.parse import urlparse, parse_qs
 
 # ─── CONFIG ───────────────────────────────────────────────────────────────────
@@ -14,6 +15,7 @@ PORT       = int(os.environ.get("PORT", 8000))   # Railway sets PORT automatical
 DB_FILE    = os.path.join(os.path.dirname(os.path.abspath(__file__)), "studyai.db")
 JWT_SECRET = os.environ.get("JWT_SECRET", "studyai-alhikmah-secret-2026")
 JWT_EXPIRY = 86400
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")   # Set this in Railway Variables
 
 # Static files served by this server
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -213,6 +215,38 @@ class Engine:
 
 ENGINE=Engine()
 
+# ─── CLAUDE AI HELPER ─────────────────────────────────────────────────────────
+def call_claude(messages, system_prompt, max_tokens=3500):
+    """Call Anthropic Claude API using stdlib urllib — no new pip packages needed."""
+    if not ANTHROPIC_API_KEY:
+        raise Exception("ANTHROPIC_API_KEY environment variable is not set in Railway.")
+
+    payload = json.dumps({
+        "model": "claude-sonnet-4-20250514",
+        "max_tokens": max_tokens,
+        "system": system_prompt,
+        "messages": messages
+    }).encode("utf-8")
+
+    req = urllib.request.Request(
+        "https://api.anthropic.com/v1/messages",
+        data=payload,
+        headers={
+            "Content-Type": "application/json",
+            "x-api-key": ANTHROPIC_API_KEY,
+            "anthropic-version": "2023-06-01"
+        },
+        method="POST"
+    )
+
+    try:
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            return data["content"][0]["text"]
+    except urllib.error.HTTPError as e:
+        body = e.read().decode("utf-8")
+        raise Exception(f"Anthropic API error {e.code}: {body}")
+
 # ─── JWT + PASSWORD ───────────────────────────────────────────────────────────
 def _b64u(d): return base64.urlsafe_b64encode(d).rstrip(b'=').decode()
 def _b64d(s): p=4-len(s)%4; return base64.urlsafe_b64decode(s+'='*(p%4))
@@ -354,23 +388,24 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
         # ── API routes ──
         {
-            "/api":                    self.root,
-            "/api/health":             self.health,
-            "/api/auth/me":            self.me,
-            "/api/student/dashboard":  self.dashboard,
-            "/api/student/progress":   self.progress,
-            "/api/student/cgpa":       self.cgpa,
-            "/api/recommendations":    self.recommendations,
-            "/api/quizzes":            self.get_quizzes,
-            "/api/resources":          self.get_resources,
-            "/api/analytics/class":    self.class_analytics,
-            "/api/analytics/students": self.all_students,
-            "/api/analytics/at-risk":  self.at_risk,
-            "/api/semesters":          self.get_semesters,
-            "/api/courses":            self.get_courses,
-            "/api/semester/summary":   self.semester_summary,
-            "/api/profile/history":    self.profile_history,
-            "/api/admin/student":      self.admin_student_detail,
+            "/api":                        self.root,
+            "/api/health":                 self.health,
+            "/api/auth/me":                self.me,
+            "/api/student/dashboard":      self.dashboard,
+            "/api/student/progress":       self.progress,
+            "/api/student/cgpa":           self.cgpa,
+            "/api/recommendations":        self.recommendations,
+            "/api/recommendations/study":  self.study_recommendations,   # ← NEW
+            "/api/quizzes":                self.get_quizzes,
+            "/api/resources":              self.get_resources,
+            "/api/analytics/class":        self.class_analytics,
+            "/api/analytics/students":     self.all_students,
+            "/api/analytics/at-risk":      self.at_risk,
+            "/api/semesters":              self.get_semesters,
+            "/api/courses":                self.get_courses,
+            "/api/semester/summary":       self.semester_summary,
+            "/api/profile/history":        self.profile_history,
+            "/api/admin/student":          self.admin_student_detail,
         }.get(path, lambda _=None: self.jerr("Not found",404))(qs)
 
     def do_POST(self):
@@ -491,6 +526,203 @@ class Handler(http.server.BaseHTTPRequestHandler):
         for r in rows: sm.setdefault(r["subject"],[]).append(r["pct"])
         sa={s:round(sum(v)/len(v)) for s,v in sm.items()} or None
         self.jout(ENGINE.recs(sa,len(rows),u.get("streak",0)))
+
+    # ══ AI STUDY RECOMMENDATIONS (NEW) ════════════════════════════════════════
+    def study_recommendations(self, qs=None):
+        """Generate all 8 AI-powered study recommendations using Claude."""
+        u = self.need_auth()
+        if not u: return
+
+        if not ANTHROPIC_API_KEY:
+            return self.jerr(
+                "AI recommendations are not yet configured. "
+                "Please ask your administrator to add the ANTHROPIC_API_KEY to Railway environment variables.",
+                503
+            )
+
+        conn = get_db()
+
+        # Get the student's active semester
+        sem = conn.execute(
+            "SELECT * FROM semesters WHERE student_id=? AND status='active' "
+            "ORDER BY created_at DESC LIMIT 1",
+            (u["id"],)
+        ).fetchone()
+
+        if not sem:
+            conn.close()
+            return self.jerr(
+                "No active semester found. Please start a new semester in the Semester Planner first.",
+                404
+            )
+
+        sem = dict(sem)
+
+        # Get all courses for this semester
+        courses = [
+            dict(r) for r in conn.execute(
+                "SELECT * FROM courses WHERE semester_id=? AND student_id=?",
+                (sem["id"], u["id"])
+            ).fetchall()
+        ]
+        conn.close()
+
+        if not courses:
+            return self.jerr(
+                "No courses found in your active semester. "
+                "Please add your courses in the Semester Planner first.",
+                404
+            )
+
+        # Parse CA scores and compute averages
+        for c in courses:
+            c["ca_scores"] = json.loads(c.get("ca_scores") or "[]")
+            c["avg_ca"] = (
+                round(sum(c["ca_scores"]) / len(c["ca_scores"]), 1)
+                if c["ca_scores"] else None
+            )
+
+        # Clean summary to send to Claude
+        course_summary = [
+            {
+                "code":          c["code"],
+                "title":         c["title"],
+                "target_grade":  c["target_grade"],
+                "target_score":  c["target_score"],
+                "avg_ca_so_far": c["avg_ca"],
+                "credit_units":  c["credit_units"],
+            }
+            for c in courses
+        ]
+
+        SYSTEM = (
+            "You are StudyAI, the AI academic advisor for Al-Hikmah University, Ilorin, Nigeria. "
+            "University grading scale: A=70-100 (5.0 GP), B=60-69 (4.0), C=50-59 (3.0), "
+            "D=45-49 (2.0), F=0-44 (0.0). Assessment breakdown: 30% CA + 70% Final Exam. "
+            "Return ONLY valid JSON. No markdown, no code fences, no explanation, no preamble whatsoever."
+        )
+
+        PROMPT = f"""Student: {u['name']}
+Department: {u.get('dept', 'Not specified')}
+Level: {u.get('level', 'Not specified')}
+Semester: {sem['semester']} {sem['year']}
+
+Current courses and performance:
+{json.dumps(course_summary, indent=2)}
+
+Generate personalised study recommendations and return exactly this JSON structure. \
+Fill every field with specific, helpful content relevant to this student's actual courses and scores:
+
+{{
+  "attention": {{
+    "courses": [
+      {{
+        "code": "...",
+        "title": "...",
+        "urgency": "high|medium|low",
+        "message": "2-sentence explanation of what this student must specifically do, referencing their actual CA score vs target grade."
+      }}
+    ]
+  }},
+  "topics": {{
+    "courses": [
+      {{
+        "code": "...",
+        "title": "...",
+        "topics": ["5 to 6 specific topics or chapters the student should focus on for this course"]
+      }}
+    ]
+  }},
+  "resources": {{
+    "courses": [
+      {{
+        "code": "...",
+        "title": "...",
+        "books": ["2 real textbook titles with author names relevant to this course"],
+        "videos": ["2 real YouTube channels or playlist names relevant to this course"],
+        "websites": ["2 real websites such as GeeksforGeeks, Khan Academy, Coursera, MIT OpenCourseWare"]
+      }}
+    ]
+  }},
+  "hours": {{
+    "daily_summary": "One sentence of overall advice on how to manage total daily study time.",
+    "courses": [
+      {{
+        "code": "...",
+        "hours_per_day": 2.0,
+        "reason": "Brief reason based on urgency and target grade gap"
+      }}
+    ]
+  }},
+  "timetable": {{
+    "days": [
+      {{
+        "day": "Monday",
+        "morning": "Course code — specific study activity",
+        "afternoon": "Course code — specific study activity",
+        "evening": "Course code — specific review activity"
+      }}
+    ]
+  }},
+  "questions": {{
+    "courses": [
+      {{
+        "code": "...",
+        "title": "...",
+        "questions": [
+          {{"question": "Exam-style question relevant to this course", "hint": "Topic area hint"}},
+          {{"question": "Second exam-style question", "hint": "Topic area hint"}},
+          {{"question": "Third exam-style question", "hint": "Topic area hint"}}
+        ]
+      }}
+    ]
+  }},
+  "tips": {{
+    "tips": [
+      {{
+        "title": "Short tip title",
+        "detail": "2-sentence actionable advice specific to this student's actual scores and targets."
+      }}
+    ]
+  }},
+  "career": {{
+    "strengths": "2-sentence analysis of the student's strongest subjects and aptitudes based on their CA scores.",
+    "careers": [
+      {{
+        "title": "Career path name",
+        "why": "Why this career suits the student based on their course performance and department",
+        "next_steps": "One specific, concrete action the student can take right now"
+      }}
+    ]
+  }}
+}}
+
+Important rules:
+- Include ALL {len(courses)} courses in attention, topics, resources, hours, and questions sections
+- Include ALL 7 days (Monday through Sunday) in the timetable — put Rest and light review on Sunday
+- Include exactly 6 tips in the tips array
+- Include 3 to 4 career paths in the career section
+- All content must be specific to this student's real courses — nothing generic
+"""
+
+        try:
+            raw = call_claude([{"role": "user", "content": PROMPT}], SYSTEM, max_tokens=3500)
+            clean = raw.replace("```json", "").replace("```", "").strip()
+            rec_data = json.loads(clean)
+            self.jout({
+                "ok":            True,
+                "recommendations": rec_data,
+                "student":       u["name"],
+                "dept":          u.get("dept", ""),
+                "level":         u.get("level", ""),
+                "semester":      f"{sem['semester']} {sem['year']}",
+                "courses_count": len(courses),
+                "generated_at":  time.strftime("%Y-%m-%dT%H:%M:%S"),
+            })
+        except json.JSONDecodeError as e:
+            self.jerr(f"AI response could not be parsed. Please try again. ({str(e)})", 500)
+        except Exception as e:
+            self.jerr(f"AI service error: {str(e)}", 500)
 
     def get_quizzes(self,_=None):
         u=self.need_auth()
@@ -698,6 +930,7 @@ if __name__=="__main__":
     print(f"  Local:    http://localhost:{PORT}")
     print(f"  Network:  http://0.0.0.0:{PORT}")
     print(f"  Database: {DB_FILE}")
+    print(f"  API key:  {'✅ Set' if ANTHROPIC_API_KEY else '❌ Missing — add ANTHROPIC_API_KEY to Railway'}")
     print(f"  Press Ctrl+C to stop\n")
     try: srv.serve_forever()
     except KeyboardInterrupt: print("\nServer stopped.")

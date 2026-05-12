@@ -221,6 +221,51 @@ select.fi{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
 .toast{background:var(--w);border:1.5px solid var(--border);border-radius:var(--r);padding:11px 16px;font-size:13px;font-weight:500;box-shadow:var(--shl);display:flex;align-items:center;gap:9px;animation:fu .22s ease;min-width:230px;color:var(--text)}
 .toast.ok{border-color:var(--gl)}.toast.er{border-color:#fecaca}
 
+/* ══ AI RECOMMENDATIONS ══ */
+.rec-gen-btn{display:inline-flex;align-items:center;gap:8px;padding:11px 22px;background:linear-gradient(135deg,var(--gd),var(--gm));border:none;border-radius:var(--rs);color:var(--w);font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;font-weight:700;cursor:pointer;transition:all .15s;margin-bottom:18px}
+.rec-gen-btn:hover:not(:disabled){opacity:.9;transform:translateY(-1px)}.rec-gen-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.rec-progress{display:none;align-items:center;gap:10px;background:var(--gp);border:1.5px solid var(--gl);border-radius:var(--rs);padding:11px 14px;font-size:13px;color:var(--gm);font-weight:600;margin-bottom:16px}
+.rec-progress.show{display:flex}
+.rec-err{display:none;background:#fef2f2;border:1.5px solid #fecaca;color:#b91c1c;border-radius:var(--rs);padding:10px 14px;font-size:13px;margin-bottom:16px}
+.rec-err.show{display:block}
+.rec-meta{display:flex;gap:16px;flex-wrap:wrap;background:var(--ow);border:1.5px solid var(--border);border-radius:var(--rs);padding:10px 14px;font-size:12px;color:var(--text2);margin-bottom:16px}
+.rec-meta strong{color:var(--text)}
+.rec-tabs{display:flex;gap:0;flex-wrap:wrap;border-bottom:2px solid var(--border);margin-bottom:16px}
+.rec-tab{padding:9px 13px;font-size:12px;font-weight:600;cursor:pointer;border:none;background:transparent;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px;font-family:'Plus Jakarta Sans',sans-serif;border-radius:6px 6px 0 0;transition:color .15s;display:flex;align-items:center;gap:5px}
+.rec-tab:hover{color:var(--text);background:var(--gp2)}.rec-tab.active{color:var(--gm);border-bottom-color:var(--gm);font-weight:700}
+.rec-pane{display:none}.rec-pane.active{display:block}
+.rec-card{background:var(--w);border:1.5px solid var(--border);border-radius:var(--r);padding:16px 18px;margin-bottom:12px;box-shadow:var(--sh)}
+.rec-card-title{font-size:14px;font-weight:800;color:var(--text);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.ral-hi{background:#fef2f2;border:1.5px solid #fecaca;border-radius:var(--rs);padding:11px 13px;margin-bottom:9px;display:flex;gap:10px;align-items:flex-start}
+.ral-md{background:var(--goldp);border:1.5px solid var(--goldl);border-radius:var(--rs);padding:11px 13px;margin-bottom:9px;display:flex;gap:10px;align-items:flex-start}
+.ral-lo{background:var(--gp);border:1.5px solid var(--gl);border-radius:var(--rs);padding:11px 13px;margin-bottom:9px;display:flex;gap:10px;align-items:flex-start}
+.ral-body strong{font-size:13px;font-weight:700;color:var(--text);display:block;margin-bottom:3px}.ral-body p{font-size:12px;color:var(--text2);line-height:1.55;margin:0}
+.topic-chip{display:inline-flex;background:var(--gp);color:var(--gm);border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;margin:3px 4px 3px 0}
+.hour-chips{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
+.hour-chip{flex:1;min-width:130px;background:var(--gp);border:1.5px solid var(--border);border-radius:var(--r);padding:12px 14px}
+.hour-chip .hc-code{font-size:11px;font-weight:700;color:var(--gm);text-transform:uppercase;letter-spacing:.06em}
+.hour-chip .hc-num{font-size:28px;font-weight:800;color:var(--text);line-height:1;margin:4px 0 2px}
+.hour-chip .hc-lbl{font-size:11px;color:var(--muted)}.hour-chip .hc-why{font-size:11px;color:var(--text2);margin-top:5px;line-height:1.45}
+.tt-tbl{width:100%;border-collapse:collapse;font-size:12px}
+.tt-tbl th{background:var(--gp);padding:8px 10px;text-align:left;font-weight:700;font-size:11px;color:var(--gm);border-bottom:2px solid var(--border);letter-spacing:.04em;text-transform:uppercase}
+.tt-tbl td{padding:9px 10px;border-bottom:1px solid var(--border);color:var(--text2);vertical-align:top;line-height:1.5}
+.tt-tbl tr:last-child td{border-bottom:none}.tt-tbl .tt-day{font-weight:700;color:var(--text);white-space:nowrap}
+.tt-tbl .tt-sun td{background:var(--ow);color:var(--muted);font-style:italic}
+.pq-item{padding:10px 0;border-bottom:1px solid var(--border)}.pq-item:last-child{border-bottom:none}
+.pq-q{font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px}
+.pq-hint{font-size:12px;color:var(--muted)}.pq-hint span{background:var(--goldp);color:#7a5a00;border-radius:4px;padding:1px 7px;font-size:11px;font-weight:700}
+.tip-item{display:flex;gap:11px;padding:10px 0;border-bottom:1px solid var(--border);align-items:flex-start}.tip-item:last-child{border-bottom:none}
+.tip-num{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--gd),var(--gm));color:var(--w);font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.tip-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:3px}.tip-detail{font-size:12px;color:var(--text2);line-height:1.55}
+.career-card{background:linear-gradient(135deg,var(--gp),var(--gp2));border:1.5px solid var(--gl);border-radius:var(--r);padding:13px 15px;margin-bottom:10px}
+.career-card h4{font-size:13px;font-weight:800;color:var(--gd);margin-bottom:5px}
+.career-why{font-size:12px;color:var(--text2);line-height:1.55}
+.career-next{font-size:12px;color:var(--gm);font-weight:700;margin-top:5px}
+.career-next::before{content:"→ "}
+.strengths-box{background:var(--gp);border:1.5px solid var(--gl);border-radius:var(--rs);padding:12px 14px;font-size:13px;color:var(--gm);line-height:1.65;margin-bottom:14px}
+.res-group h4{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:10px 0 5px}
+.res-group ul{padding-left:16px;margin:0}.res-group li{font-size:12px;color:var(--text2);line-height:1.65;margin-bottom:2px}
+
 /* RESPONSIVE */
 @media(max-width:1024px){.mgrid{grid-template-columns:repeat(2,1fr)}.g2w{grid-template-columns:1fr}}
 @media(max-width:700px){
@@ -324,6 +369,7 @@ select.fi{cursor:pointer;appearance:none;background-image:url("data:image/svg+xm
       <div class="si" onclick="go('quiz',this)"><svg class="ni" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><path d="M8 8a2 2 0 113.5 1.3C11 10 10 10.5 10 12"/><circle cx="10" cy="15" r=".8" fill="currentColor"/></svg><span>Quizzes</span></div>
       <div class="si" onclick="go('resources',this)"><svg class="ni" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 3h8l4 4v10a1 1 0 01-1 1H4a1 1 0 01-1-1V4a1 1 0 011-1z"/><polyline points="12,3 12,7 16,7"/></svg><span>Resources</span></div>
       <div class="si" onclick="go('history',this)"><svg class="ni" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><polyline points="10,6 10,10 13,12"/></svg><span>Semester History</span></div>
+      <div class="si" onclick="go('recs',this)"><svg class="ni" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><path d="M7 9.5C7 8.1 8.3 7 10 7s3 1.1 3 2.5c0 1.2-.8 2-2 2.3V13"/><circle cx="10" cy="15.5" r=".8" fill="currentColor"/></svg><span>AI Recommendations</span><span class="sbadge" style="background:var(--gold);color:var(--text)">NEW</span></div>
       <div class="s-sec">Account</div>
       <div class="si" onclick="go('profile',this)"><svg class="ni" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="7" r="3"/><path d="M3 18c0-3.9 3.1-7 7-7s7 3.1 7 7"/></svg><span>My Profile</span></div>
     </nav>
@@ -558,7 +604,7 @@ function openSidebar(){document.getElementById('sidebar').classList.add('mobile-
 function closeSidebar(){document.getElementById('sidebar').classList.remove('mobile-open');document.getElementById('overlay').classList.remove('show')}
 
 /* ── NAVIGATION ── */
-const TITLES={dash:['Dashboard','Overview'],planner:['Semester Planner','Plan Your Semester'],courses:['My Courses','Active Semester'],quiz:['Quizzes','Test Your Knowledge'],resources:['Resources','Study Materials'],history:['Semester History','All Semesters'],profile:['My Profile','Account Settings']};
+const TITLES={dash:['Dashboard','Overview'],planner:['Semester Planner','Plan Your Semester'],courses:['My Courses','Active Semester'],quiz:['Quizzes','Test Your Knowledge'],resources:['Resources','Study Materials'],history:['Semester History','All Semesters'],profile:['My Profile','Account Settings'],recs:['AI Recommendations','Personalised Study Advice']};
 
 function go(p,el){
   document.querySelectorAll('.si').forEach(x=>x.classList.remove('active'));
@@ -571,7 +617,7 @@ function go(p,el){
   const pw=document.getElementById('pw');
   pw.innerHTML='<div class="loader"><div class="spin"></div></div>';
   pw.scrollTop=0;
-  ({dash:pDash,planner:pPlanner,courses:pCourses,quiz:pQuiz,resources:pResources,history:pHistory,profile:pProfile}[p]||(() => {}))();
+  ({dash:pDash,planner:pPlanner,courses:pCourses,quiz:pQuiz,resources:pResources,history:pHistory,profile:pProfile,recs:pRecs}[p]||(() => {}))();
 }
 
 /* ══ PAGES ══════════════════════════════════════════════════════════ */
@@ -994,6 +1040,274 @@ async function changePassword(){
     if(okEl){okEl.querySelector('span:last-child').textContent='Password changed successfully!';okEl.classList.add('show');}
     document.getElementById('pw-cur').value='';document.getElementById('pw-new').value='';document.getElementById('pw-cnf').value='';
   }catch(e){if(errEl){errEl.querySelector('span:last-child').textContent=e.message;errEl.classList.add('show');}}
+}
+
+
+/* ══ AI RECOMMENDATIONS PAGE ══════════════════════════════════════════════ */
+let REC_DATA = null;
+let REC_TAB  = 'attention';
+
+async function pRecs(){
+  const pw = document.getElementById('pw');
+
+  // Check for active semester and courses first
+  await loadAll();
+  if(!ACTIVE_SEM){
+    pw.innerHTML=`<div class="panel"><div class="empty">
+      <div class="empty-icon">📅</div>
+      <div class="empty-title">No Active Semester</div>
+      <div class="empty-sub">Create a semester and add your courses first, then come back here for AI recommendations.</div>
+      <button class="btn bp" onclick="go('planner',null)">Go to Semester Planner →</button>
+    </div></div>`;
+    return;
+  }
+  if(!COURSES.length){
+    pw.innerHTML=`<div class="panel"><div class="empty">
+      <div class="empty-icon">📚</div>
+      <div class="empty-title">No Courses Yet</div>
+      <div class="empty-sub">Add your courses and CA scores in the Semester Planner, then AI can generate recommendations for each one.</div>
+      <button class="btn bp" onclick="go('planner',null)">Add Courses →</button>
+    </div></div>`;
+    return;
+  }
+
+  pw.innerHTML=`<div class="fu">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:6px">
+      <div>
+        <div style="font-size:20px;font-weight:800;margin-bottom:3px">🤖 AI Study Recommendations</div>
+        <div style="font-size:13px;color:var(--muted)">Personalised advice for ${ACTIVE_SEM.semester} ${ACTIVE_SEM.year} · ${COURSES.length} course${COURSES.length!==1?'s':''}</div>
+      </div>
+    </div>
+    <div style="background:linear-gradient(135deg,var(--gd),var(--gm));border-radius:var(--r);padding:16px 18px;margin-bottom:18px;color:var(--w)">
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.6);font-weight:700;margin-bottom:6px">What you'll get</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">
+        ${['⚠️ Subjects needing attention','📖 Topics to study next','📦 Books, videos & websites','⏱ Daily study hours','📅 Weekly timetable','❓ Practice questions','💡 Grade improvement tips','🎯 Career guidance'].map(t=>`<span style="background:rgba(255,255,255,.12);border-radius:20px;padding:4px 11px;font-size:12px;font-weight:600">${t}</span>`).join('')}
+      </div>
+    </div>
+    <button class="rec-gen-btn" id="rec-gen-btn" onclick="generateRecs()">
+      ✨ Generate My Recommendations
+    </button>
+    <div class="rec-progress" id="rec-progress">
+      <div class="spin" style="width:18px;height:18px;border-width:2px;flex-shrink:0"></div>
+      <span id="rec-prog-txt">Analysing your courses and scores…</span>
+    </div>
+    <div class="rec-err" id="rec-err"></div>
+    <div id="rec-results" style="display:none">
+      <div class="rec-meta" id="rec-meta"></div>
+      <div class="rec-tabs" id="rec-tabs"></div>
+      <div id="rec-panes"></div>
+    </div>
+  </div>`;
+
+  // If we already have data cached, show it immediately
+  if(REC_DATA) renderRecResults();
+}
+
+async function generateRecs(){
+  const btn     = document.getElementById('rec-gen-btn');
+  const prog    = document.getElementById('rec-progress');
+  const err     = document.getElementById('rec-err');
+  const results = document.getElementById('rec-results');
+  if(!btn) return;
+
+  btn.disabled = true;
+  btn.textContent = '⏳ Generating…';
+  prog.className  = 'rec-progress show';
+  err.className   = 'rec-err';
+  results.style.display = 'none';
+
+  const msgs = [
+    'Analysing your courses and CA scores…',
+    'Identifying subjects that need attention…',
+    'Building your weekly timetable…',
+    'Generating practice questions…',
+    'Writing career guidance…',
+    'Finalising all 8 recommendations…'
+  ];
+  let mi = 0;
+  const ptxt = document.getElementById('rec-prog-txt');
+  const ticker = setInterval(()=>{ if(mi < msgs.length-1){ mi++; if(ptxt) ptxt.textContent = msgs[mi]; }}, 4500);
+
+  try{
+    const data = await GET('/recommendations/study');
+    clearInterval(ticker);
+    REC_DATA = data;
+    REC_TAB  = 'attention';
+    renderRecResults();
+    results.style.display = 'block';
+  }catch(e){
+    clearInterval(ticker);
+    err.textContent = '❌ ' + e.message;
+    err.className   = 'rec-err show';
+  }finally{
+    prog.className  = 'rec-progress';
+    btn.disabled    = false;
+    btn.innerHTML   = '🔄 Regenerate Recommendations';
+  }
+}
+
+function renderRecResults(){
+  const d   = REC_DATA;
+  const rec = d.recommendations;
+  const results = document.getElementById('rec-results');
+  if(!results) return;
+
+  // Meta bar
+  document.getElementById('rec-meta').innerHTML =
+    `<span>👤 <strong>${d.student}</strong></span>` +
+    `<span>📘 <strong>${d.semester}</strong></span>` +
+    `<span>📋 <strong>${d.courses_count}</strong> course${d.courses_count!==1?'s':''}</span>` +
+    `<span>🕐 <strong>${new Date(d.generated_at).toLocaleTimeString()}</strong></span>`;
+
+  const TABS = [
+    {id:'attention', label:'Attention',   icon:'⚠️'},
+    {id:'topics',    label:'Topics',      icon:'📖'},
+    {id:'resources', label:'Resources',   icon:'📦'},
+    {id:'hours',     label:'Study Hours', icon:'⏱'},
+    {id:'timetable', label:'Timetable',   icon:'📅'},
+    {id:'questions', label:'Practice Qs', icon:'❓'},
+    {id:'tips',      label:'Grade Tips',  icon:'💡'},
+    {id:'career',    label:'Career',      icon:'🎯'},
+  ];
+
+  document.getElementById('rec-tabs').innerHTML = TABS.map(t=>
+    `<button class="rec-tab ${REC_TAB===t.id?'active':''}" onclick="switchRecTab('${t.id}',this)">
+      <span>${t.icon}</span>${t.label}
+    </button>`).join('');
+
+  document.getElementById('rec-panes').innerHTML = TABS.map(t=>
+    `<div class="rec-pane ${REC_TAB===t.id?'active':''}" id="rec-pane-${t.id}">${buildPane(t.id, rec)}</div>`
+  ).join('');
+}
+
+function switchRecTab(id, el){
+  REC_TAB = id;
+  document.querySelectorAll('.rec-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.rec-pane').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('rec-pane-'+id).classList.add('active');
+}
+
+function buildPane(tab, rec){
+  try{
+    switch(tab){
+      case 'attention': return buildAttention(rec.attention);
+      case 'topics':    return buildTopics(rec.topics);
+      case 'resources': return buildResources(rec.resources);
+      case 'hours':     return buildHours(rec.hours);
+      case 'timetable': return buildTimetable(rec.timetable);
+      case 'questions': return buildQuestions(rec.questions);
+      case 'tips':      return buildTips(rec.tips);
+      case 'career':    return buildCareer(rec.career);
+      default: return '';
+    }
+  }catch(e){ return `<div class="rec-card"><div style="color:var(--muted);font-size:13px">Could not render this section. Please regenerate.</div></div>`; }
+}
+
+function buildAttention(d){
+  if(!d||!d.courses) return '';
+  return d.courses.map(c=>{
+    const cls = c.urgency==='high'?'ral-hi':c.urgency==='medium'?'ral-md':'ral-lo';
+    const icon = c.urgency==='high'?'🔴':c.urgency==='medium'?'🟡':'🟢';
+    return `<div class="${cls}"><div style="font-size:18px;flex-shrink:0">${icon}</div>
+      <div class="ral-body"><strong>${c.code} — ${c.title}</strong><p>${c.message}</p></div></div>`;
+  }).join('');
+}
+
+function buildTopics(d){
+  if(!d||!d.courses) return '';
+  return d.courses.map(c=>`
+    <div class="rec-card">
+      <div class="rec-card-title">📖 ${c.code} — ${c.title}</div>
+      <div>${(c.topics||[]).map(t=>`<span class="topic-chip">${t}</span>`).join('')}</div>
+    </div>`).join('');
+}
+
+function buildResources(d){
+  if(!d||!d.courses) return '';
+  return d.courses.map(c=>`
+    <div class="rec-card">
+      <div class="rec-card-title">📦 ${c.code} — ${c.title}</div>
+      ${c.books?.length?`<div class="res-group"><h4>📗 Textbooks</h4><ul>${c.books.map(b=>`<li>${b}</li>`).join('')}</ul></div>`:''}
+      ${c.videos?.length?`<div class="res-group"><h4>▶️ YouTube / Videos</h4><ul>${c.videos.map(v=>`<li>${v}</li>`).join('')}</ul></div>`:''}
+      ${c.websites?.length?`<div class="res-group"><h4>🌐 Websites</h4><ul>${c.websites.map(w=>`<li>${w}</li>`).join('')}</ul></div>`:''}
+    </div>`).join('');
+}
+
+function buildHours(d){
+  if(!d) return '';
+  const chips = (d.courses||[]).map(c=>`
+    <div class="hour-chip">
+      <div class="hc-code">${c.code}</div>
+      <div class="hc-num">${c.hours_per_day}<span style="font-size:14px;font-weight:500;color:var(--text2)">h</span></div>
+      <div class="hc-lbl">per day</div>
+      <div class="hc-why">${c.reason}</div>
+    </div>`).join('');
+  return `<div class="rec-card">
+    <div class="rec-card-title">⏱ Daily Study Hours</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:10px">${d.daily_summary||''}</div>
+    <div class="hour-chips">${chips}</div>
+  </div>`;
+}
+
+function buildTimetable(d){
+  if(!d||!d.days) return '';
+  const rows = d.days.map(day=>`
+    <tr class="${day.day==='Sunday'?'tt-sun':''}">
+      <td class="tt-day">${day.day}</td>
+      <td>${day.morning||'—'}</td>
+      <td>${day.afternoon||'—'}</td>
+      <td>${day.evening||'—'}</td>
+    </tr>`).join('');
+  return `<div class="rec-card">
+    <div class="rec-card-title">📅 Weekly Study Timetable</div>
+    <div style="overflow-x:auto">
+      <table class="tt-tbl">
+        <thead><tr><th>Day</th><th>🌅 Morning (6–9 AM)</th><th>☀️ Afternoon (2–5 PM)</th><th>🌙 Evening (7–9 PM)</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+function buildQuestions(d){
+  if(!d||!d.courses) return '';
+  return d.courses.map(c=>`
+    <div class="rec-card">
+      <div class="rec-card-title">❓ ${c.code} — ${c.title}</div>
+      ${(c.questions||[]).map((q,i)=>`
+        <div class="pq-item">
+          <div class="pq-q">${i+1}. ${q.question}</div>
+          <div class="pq-hint">Hint: <span>${q.hint}</span></div>
+        </div>`).join('')}
+    </div>`).join('');
+}
+
+function buildTips(d){
+  if(!d||!d.tips) return '';
+  return `<div class="rec-card">
+    <div class="rec-card-title">💡 Grade Improvement Tips</div>
+    ${d.tips.map((t,i)=>`
+      <div class="tip-item">
+        <div class="tip-num">${i+1}</div>
+        <div><div class="tip-title">${t.title}</div><div class="tip-detail">${t.detail}</div></div>
+      </div>`).join('')}
+  </div>`;
+}
+
+function buildCareer(d){
+  if(!d) return '';
+  return `
+    ${d.strengths?`<div class="strengths-box">💪 <strong>Your Academic Strengths:</strong><br>${d.strengths}</div>`:''}
+    <div class="rec-card">
+      <div class="rec-card-title">🎯 Recommended Career Paths</div>
+      ${(d.careers||[]).map(c=>`
+        <div class="career-card">
+          <h4>${c.title}</h4>
+          <div class="career-why">${c.why}</div>
+          <div class="career-next">${c.next_steps}</div>
+        </div>`).join('')}
+    </div>`;
 }
 
 /* ── UTILS ── */
