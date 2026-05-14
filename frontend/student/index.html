@@ -1122,104 +1122,20 @@ async function generateRecs(){
     'Identifying subjects that need attention…',
     'Building your weekly timetable…',
     'Generating practice questions…',
-    'Writing career guidance…',
+    'Compiling career guidance…',
     'Finalising all 8 recommendations…'
   ];
   let mi = 0;
   const ptxt = document.getElementById('rec-prog-txt');
-  const ticker = setInterval(()=>{ if(mi < msgs.length-1){ mi++; if(ptxt) ptxt.textContent = msgs[mi]; }}, 4500);
+  const ticker = setInterval(()=>{ if(mi < msgs.length-1){ mi++; if(ptxt) ptxt.textContent = msgs[mi]; }}, 800);
 
   try{
-    // Build course summary from existing global data
-    const courseSummary = COURSES.map(c => ({
-      code:          c.code,
-      title:         c.title,
-      target_grade:  c.target_grade,
-      target_score:  c.target_score,
-      avg_ca:        c.ca_scores && c.ca_scores.length
-                       ? Math.round(c.ca_scores.reduce((a,b)=>a+b,0)/c.ca_scores.length)
-                       : null,
-      credit_units:  c.credit_units
-    }));
-
-    const SYSTEM = `You are StudyAI, the AI academic advisor for Al-Hikmah University, Ilorin, Nigeria. Grading scale: A=70-100 (5.0 GP), B=60-69 (4.0), C=50-59 (3.0), D=45-49 (2.0), F=0-44 (0.0). Assessment: 30% CA + 70% Final Exam. Return ONLY valid JSON — no markdown, no backticks, no explanation, no preamble whatsoever.`;
-
-    const PROMPT = `Student: ${CU.name}
-Department: ${CU.dept || 'Not specified'}
-Level: ${CU.level || 'Not specified'}
-Semester: ${ACTIVE_SEM.semester} ${ACTIVE_SEM.year}
-
-Courses and current performance:
-${JSON.stringify(courseSummary, null, 2)}
-
-Generate personalised study recommendations. Return exactly this JSON structure with all fields filled with real specific content:
-
-{
-  "attention": {
-    "courses": [{"code":"...","title":"...","urgency":"high|medium|low","message":"2-sentence explanation referencing their actual CA score vs target grade."}]
-  },
-  "topics": {
-    "courses": [{"code":"...","title":"...","topics":["5 to 6 specific topics or chapters to focus on"]}]
-  },
-  "resources": {
-    "courses": [{"code":"...","title":"...","books":["2 real textbooks with authors"],"videos":["2 real YouTube channels relevant to this course"],"websites":["2 real websites like GeeksforGeeks, Khan Academy, Coursera"]}]
-  },
-  "hours": {
-    "daily_summary":"One sentence of overall daily study advice.",
-    "courses": [{"code":"...","hours_per_day":2.0,"reason":"Brief reason based on urgency and target grade"}]
-  },
-  "timetable": {
-    "days": [{"day":"Monday","morning":"Course code - study activity","afternoon":"Course code - study activity","evening":"Course code - review activity"}]
-  },
-  "questions": {
-    "courses": [{"code":"...","title":"...","questions":[{"question":"Exam-style question","hint":"Topic hint"},{"question":"...","hint":"..."},{"question":"...","hint":"..."}]}]
-  },
-  "tips": {
-    "tips": [{"title":"Short tip title","detail":"2-sentence actionable advice specific to this student."}]
-  },
-  "career": {
-    "strengths":"2-sentence analysis of strongest subjects based on CA scores.",
-    "careers": [{"title":"Career path","why":"Why it suits this student","next_steps":"One concrete action now"}]
-  }
-}
-
-Rules: include ALL ${COURSES.length} courses in attention/topics/resources/hours/questions, ALL 7 days in timetable (Sunday = rest), exactly 6 tips, 3-4 career paths. Make everything specific to this student's real courses and scores.`;
-
-    const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type':  'application/json',
-        'Authorization': 'Bearer ' + GROQ_API_KEY
-      },
-      body: JSON.stringify({
-        model:       'llama-3.3-70b-versatile',
-        messages:    [{role:'system',content:SYSTEM},{role:'user',content:PROMPT}],
-        max_tokens:  3500,
-        temperature: 0.7
-      })
-    });
-
-    const raw = await resp.json();
-    if(!resp.ok) throw new Error(raw.error?.message || 'Groq API error');
-
-    let text = raw.choices[0].message.content;
-    text = text.replace(/```json/g,'').replace(/```/g,'').trim();
-    const rec = JSON.parse(text);
-
+    const data = await GET('/recommendations/study');
     clearInterval(ticker);
-    REC_DATA = {
-      recommendations: rec,
-      student:         CU.name,
-      dept:            CU.dept || '',
-      level:           CU.level || '',
-      semester:        `${ACTIVE_SEM.semester} ${ACTIVE_SEM.year}`,
-      courses_count:   COURSES.length,
-      generated_at:    new Date().toISOString()
-    };
-    REC_TAB = 'attention';
+    REC_DATA = data;
+    REC_TAB  = 'attention';
     renderRecResults();
     results.style.display = 'block';
-
   }catch(e){
     clearInterval(ticker);
     err.textContent = '❌ ' + e.message;
